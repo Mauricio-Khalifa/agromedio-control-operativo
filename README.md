@@ -16,23 +16,36 @@ Proyecto Integrador – Unidades Tecnológicas de Santander (TSI304 Planeación 
 - Java JDK 17 o superior (`java -version`)
 - Para compilar: Apache Ant (incluido en NetBeans 21: `C:\Program Files\NetBeans-21\netbeans\extide\ant\bin\ant.bat`)
 
-## Compilar y ejecutar
+## Clonar, compilar y ejecutar
 
 ```powershell
-cd AgromedioApp
-# Compilar y generar dist/AgromedioApp.jar
+# 1. Clonar el repositorio (desde la carpeta donde quieras trabajarlo)
+git clone https://github.com/Mauricio-Khalifa/agromedio-control-operativo.git
+cd agromedio-control-operativo\AgromedioApp
+
+# 2. Compilar y generar dist\AgromedioApp.jar
 & "C:\Program Files\NetBeans-21\netbeans\extide\ant\bin\ant.bat" jar
 
-# Ejecutar
+# 3. Ejecutar (las comillas alrededor de -D son necesarias en PowerShell)
+java "-Dfile.encoding=UTF-8" -jar dist\AgromedioApp.jar
+```
+
+En **CMD** (síntaxis convencional, sin comillas ni `&`):
+
+```cmd
+cd agromedio-control-operativo\AgromedioApp
+"C:\Program Files\NetBeans-21\netbeans\extide\ant\bin\ant.bat" jar
 java -Dfile.encoding=UTF-8 -jar dist\AgromedioApp.jar
 ```
 
 O simplemente doble clic en `AgromedioApp\ejecutar.bat`.
 
+> Si aparece `Error: Could not find or load main class .encoding=UTF-8`, es porque la consola es PowerShell y el `-Dfile...` quedó sin comillas: use exactamente `java "-Dfile.encoding=UTF-8" -jar dist\AgromedioApp.jar`.
+
 ## Pruebas automatizadas
 
 ```powershell
-cd AgromedioApp
+cd agromedio-control-operativo\AgromedioApp
 & "C:\Program Files\NetBeans-21\netbeans\extide\ant\bin\ant.bat" pruebas          # esquema 10 + lógica 14
 & "C:\Program Files\NetBeans-21\netbeans\extide\ant\bin\ant.bat" pruebas-vistas   # ventanas 13
 ```
