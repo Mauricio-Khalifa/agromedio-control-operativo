@@ -96,4 +96,32 @@
             <jvmarg value="-Dfile.encoding=UTF-8"/>
         </java>
     </target>
+
+    <!-- ============ Acciones de NetBeans IDE ============ -->
+
+    <target name="run-single" depends="compile"
+            description="NetBeans Shift+F6: ejecuta la clase indicada en -Drun.class">
+        <fail unless="run.class"
+              message="NetBeans no indico la clase a ejecutar. Ejecute la aplicacion con 'run' o use ejecutar.bat."/>
+        <java classname="${run.class}" fork="true" failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <path refid="classpath"/>
+            </classpath>
+            <jvmarg value="-Dfile.encoding=UTF-8"/>
+            <arg line="${application.args}"/>
+        </java>
+    </target>
+
+    <target name="debug" depends="jar" description="NetBeans Debug Project: lanza la aplicacion">
+        <echo level="warn" message="Aviso: el proyecto no incluye build-impl de NetBeans; se ejecuta sin depurador."/>
+        <antcall target="run"/>
+    </target>
+
+    <target name="debug-single" depends="compile" description="NetBeans Shift+F9: ejecuta la clase indicada en -Drun.class">
+        <echo level="warn" message="Aviso: el proyecto no incluye build-impl de NetBeans; se ejecuta sin depurador."/>
+        <antcall target="run-single"/>
+    </target>
+
+    <target name="profile-single" depends="run-single" description="NetBeans Profile File"/>
 </project>
