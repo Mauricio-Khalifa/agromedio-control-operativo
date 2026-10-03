@@ -1,0 +1,21 @@
+# Compilación (se regenera con: ant jar)
+AgromedioApp/build/
+AgromedioApp/dist/
+
+# Bases de datos locales de ejecución y pruebas
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Archivos temporales de Word/Excel
+~$*
+*.tmp
+
+# Sistema
+Thumbs.db
+desktop.ini
+
+# IDE (la carpeta nbproject/ SÍ va al repositorio)
+.idea/
+*.iml

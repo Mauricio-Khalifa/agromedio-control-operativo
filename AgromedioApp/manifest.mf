@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Main-Class: agromedio.presentacion.Aplicacion
+Implementation-Title: Sistema de Control Operativo Agromedio
+Implementation-Version: 1.0

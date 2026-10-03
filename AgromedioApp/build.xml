@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- =====================================================================
+     Proyecto NetBeans - Sistema de Control Operativo AGROMEDIO
+     Build autocontenido (targets: clean, compile, jar, run).
+     Abra el proyecto en NetBeans 21 y use Run (F6) o 'Clean and Build'.
+     ===================================================================== -->
+<project name="AgromedioApp" default="jar" basedir=".">
+
+    <property file="nbproject/project.properties"/>
+    <property name="src.dir" value="src"/>
+    <property name="build.dir" value="build"/>
+    <property name="build.classes.dir" value="${build.dir}/classes"/>
+    <property name="dist.dir" value="dist"/>
+    <property name="dist.jar" value="${dist.dir}/AgromedioApp.jar"/>
+    <property name="dist.lib.dir" value="${dist.dir}/lib"/>
+    <property name="main.class" value="agromedio.presentacion.Aplicacion"/>
+
+    <path id="classpath">
+        <fileset dir="lib" includes="*.jar"/>
+    </path>
+
+    <!-- Ruta de librerias para el manifest del jar (ejecucion con doble clic) -->
+    <pathconvert property="manifest.classpath" pathsep=" ">
+        <path refid="classpath"/>
+        <chainedmapper>
+            <flattenmapper/>
+            <regexpmapper from="(.*)" to="lib/\1"/>
+        </chainedmapper>
+    </pathconvert>
+
+    <target name="clean" description="Elimina los archivos generados">
+        <delete dir="${build.dir}"/>
+        <delete dir="${dist.dir}"/>
+    </target>
+
+    <target name="compile" description="Compila las fuentes Java">
+        <mkdir dir="${build.classes.dir}"/>
+        <javac srcdir="${src.dir}" destdir="${build.classes.dir}"
+               encoding="UTF-8" includeantruntime="false" release="17">
+            <classpath refid="classpath"/>
+        </javac>
+        <!-- Recursos: guiones SQL y configuraciones -->
+        <copy todir="${build.classes.dir}">
+            <fileset dir="${src.dir}" excludes="**/*.java"/>
+        </copy>
+    </target>
+
+    <target name="jar" depends="compile" description="Genera el ejecutable en dist/">
+        <mkdir dir="${dist.dir}"/>
+        <jar destfile="${dist.jar}">
+            <fileset dir="${build.classes.dir}"/>
+            <manifest>
+                <attribute name="Main-Class" value="${main.class}"/>
+                <attribute name="Class-Path" value="${manifest.classpath}"/>
+                <attribute name="Implementation-Title" value="Sistema de Control Operativo Agromedio"/>
+                <attribute name="Implementation-Version" value="1.0"/>
+            </manifest>
+        </jar>
+        <mkdir dir="${dist.lib.dir}"/>
+        <copy todir="${dist.lib.dir}">
+            <fileset dir="lib" includes="*.jar"/>
+        </copy>
+        <echo message="JAR generado: ${dist.jar}"/>
+    </target>
+
+    <target name="run" depends="jar" description="Ejecuta la aplicacion">
+        <java jar="${dist.jar}" fork="true" failonerror="true">
+            <jvmarg value="-Dfile.encoding=UTF-8"/>
+        </java>
+    </target>
+
+    <target name="pruebas" depends="compile" description="Ejecuta las pruebas automaticas">
+        <java classname="agromedio.pruebas.PruebaEsquema" fork="true" failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <path refid="classpath"/>
+            </classpath>
+            <jvmarg value="-Dagromedio.db=build/prueba_esquema.db"/>
+        </java>
+        <java classname="agromedio.pruebas.PruebaLogica" fork="true" failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <path refid="classpath"/>
+            </classpath>
+            <jvmarg value="-Dagromedio.db=build/prueba_logica.db"/>
+        </java>
+    </target>
+
+    <target name="pruebas-vistas" depends="compile"
+            description="Construye todas las ventanas para verificar que cargan sin error">
+        <java classname="agromedio.pruebas.PruebaVistas" fork="true" failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <path refid="classpath"/>
+            </classpath>
+            <jvmarg value="-Dfile.encoding=UTF-8"/>
+        </java>
+    </target>
+</project>
