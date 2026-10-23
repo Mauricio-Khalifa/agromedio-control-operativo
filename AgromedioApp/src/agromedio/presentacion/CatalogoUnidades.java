@@ -17,7 +17,7 @@ public class CatalogoUnidades implements AdaptadorCatalogo {
 
     @Override
     public String[] columnasTabla() {
-        return new String[]{"ID", "Nombre", "Abreviatura"};
+        return new String[]{"Nombre", "Abreviatura"};
     }
 
     @Override
@@ -25,7 +25,7 @@ public class CatalogoUnidades implements AdaptadorCatalogo {
         cache = dao.listar();
         List<Object[]> filas = new ArrayList<>();
         for (UnidadMedida u : cache) {
-            filas.add(new Object[]{u.getIdUnidad(), u.getNombre(), u.getAbreviatura()});
+            filas.add(new Object[]{u.getNombre(), u.getAbreviatura()});
         }
         return filas;
     }

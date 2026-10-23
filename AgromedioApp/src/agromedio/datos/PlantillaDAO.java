@@ -12,8 +12,11 @@ public interface PlantillaDAO {
     PlantillaOperativa obtener(int id);
     int guardar(PlantillaOperativa plantilla);
     void actualizarEstado(int idPlantilla, String estado);
+    boolean tieneHistorico(int idPlantilla);
+    void eliminar(int idPlantilla);
 
     List<DetallePlantilla> listarDetalle(int idPlantilla);
+    DetallePlantilla obtenerDetalle(int idDetallePlantilla);
     void agregarDetalle(DetallePlantilla detalle);
     void eliminarDetalle(int idDetallePlantilla);
 }

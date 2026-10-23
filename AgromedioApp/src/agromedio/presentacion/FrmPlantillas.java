@@ -21,13 +21,14 @@ import javax.swing.JTextField;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
+import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.time.LocalDate;
 import java.util.List;
 
-/** Panel de plantillas operativas: alta manual y acceso al detalle (Modulo 0). */
+/** Panel de plantillas operativas: alta manual y acceso al detalle. */
 public class FrmPlantillas extends JInternalFrame {
 
     private final PlantillaDAO plantillaDAO = new PlantillaDAOSqlite();
@@ -36,30 +37,44 @@ public class FrmPlantillas extends JInternalFrame {
 
     private final DefaultTableModel modelo;
     private final JTable tabla;
+    private final JLabel lblResumen = UiUtil.subtitulo("");
     private List<PlantillaOperativa> cache;
     private boolean cargando = false;
     private int idSeleccionado = 0;
+    private Navegador navegador;
 
     public FrmPlantillas() {
         super("Plantillas operativas", true, true, true, true);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        setSize(920, 540);
+        setSize(1020, 620);
         setLayout(new BorderLayout(8, 8));
+        getContentPane().setBackground(Tema.FONDO);
 
-        modelo = UiUtil.modelo(new Object[]{"ID", "Mercado", "Cliente", "Fecha programada", "Estado"}, false);
+        JPanel norte = new JPanel(new BorderLayout());
+        norte.setOpaque(false);
+        norte.setBorder(BorderFactory.createEmptyBorder(8, 10, 2, 10));
+        norte.add(UiUtil.encabezado("Plantillas operativas",
+                "Programación por mercado, cliente y fecha. Doble clic para ver el detalle."),
+                BorderLayout.WEST);
+        add(norte, BorderLayout.NORTH);
+
+        modelo = UiUtil.modelo(new Object[]{"Mercado", "Cliente", "Fecha programada", "Estado"}, false);
         tabla = new JTable(modelo);
         UiUtil.prepararTabla(tabla);
         JScrollPane scroll = new JScrollPane(tabla);
-        scroll.setBorder(BorderFactory.createTitledBorder("Programacion operativa"));
+        scroll.setBorder(BorderFactory.createLineBorder(Tema.BORDE));
         add(scroll, BorderLayout.CENTER);
 
-        JButton btnNueva = UiUtil.boton("Nueva plantilla");
-        JButton btnDetalle = UiUtil.boton("Ver detalle");
-        JButton btnRefrescar = UiUtil.boton("Refrescar");
-        JPanel botones = new JPanel();
+        JButton btnNueva = UiUtil.botonPrimario("Nueva plantilla");
+        JButton btnDetalle = UiUtil.botonSecundario("Ver detalle");
+        JButton btnRefrescar = UiUtil.botonSecundario("Refrescar");
+        JPanel botones = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        botones.setOpaque(false);
+        botones.setBorder(BorderFactory.createEmptyBorder(6, 10, 8, 10));
         botones.add(btnNueva);
         botones.add(btnDetalle);
         botones.add(btnRefrescar);
+        botones.add(lblResumen);
         add(botones, BorderLayout.SOUTH);
 
         btnNueva.addActionListener(e -> nuevaPlantilla());
@@ -81,6 +96,10 @@ public class FrmPlantillas extends JInternalFrame {
 
         refrescar();
         UiUtil.fuenteRaiz(this);
+    }
+
+    void setNavegador(Navegador navegador) {
+        this.navegador = navegador;
     }
 
     private void nuevaPlantilla() {
@@ -130,7 +149,12 @@ public class FrmPlantillas extends JInternalFrame {
             UiUtil.error(this, "Seleccione una plantilla de la tabla.");
             return;
         }
-        getDesktopPane().add(new FrmDetallePlantilla(idSeleccionado));
+        int id = idSeleccionado;
+        if (navegador != null) {
+            navegador.abrir("detalle-plantilla-" + id, () -> new FrmDetallePlantilla(id));
+        } else if (getDesktopPane() != null) {
+            getDesktopPane().add(new FrmDetallePlantilla(id));
+        }
     }
 
     final void refrescar() {
@@ -138,11 +162,12 @@ public class FrmPlantillas extends JInternalFrame {
         modelo.setRowCount(0);
         cache = plantillaDAO.listar();
         for (PlantillaOperativa p : cache) {
-            modelo.addRow(new Object[]{p.getIdPlantilla(), p.getNombreMercado(), p.getNombreCliente(),
+            modelo.addRow(new Object[]{p.getNombreMercado(), p.getNombreCliente(),
                     p.getFechaProgramada(), p.getEstado()});
         }
         cargando = false;
         idSeleccionado = 0;
         tabla.clearSelection();
+        lblResumen.setText("  " + cache.size() + " plantillas registradas");
     }
 }

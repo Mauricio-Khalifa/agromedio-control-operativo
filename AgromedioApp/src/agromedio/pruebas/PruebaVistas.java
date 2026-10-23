@@ -58,7 +58,7 @@ public class PruebaVistas {
         );
 
         List<String> nombres = List.of("Catalogo clientes", "Catalogo categorias", "Catalogo unidades",
-                "Catalogo proveedores", "Productos", "Plantillas", "Detalle plantilla", "Carga Excel",
+                "Catalogo proveedores", "Productos", "Plantillas", "Detalle plantilla", "Carga de archivos",
                 "Compras", "Recepcion", "Alistamiento", "Despacho", "Reportes");
 
         for (int i = 0; i < fabricas.size(); i++) {

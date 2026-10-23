@@ -14,6 +14,7 @@ public class PlantillaOperativa {
     private String fechaProgramada;
     private String estado;
     private String fechaCarga;
+    private int idCarga;
 
     // Campo de presentacion
     private String nombreCliente;
@@ -42,6 +43,8 @@ public class PlantillaOperativa {
     public void setEstado(String estado) { this.estado = estado; }
     public String getFechaCarga() { return fechaCarga; }
     public void setFechaCarga(String fechaCarga) { this.fechaCarga = fechaCarga; }
+    public int getIdCarga() { return idCarga; }
+    public void setIdCarga(int idCarga) { this.idCarga = idCarga; }
     public String getNombreCliente() { return nombreCliente; }
     public void setNombreCliente(String nombreCliente) { this.nombreCliente = nombreCliente; }
 

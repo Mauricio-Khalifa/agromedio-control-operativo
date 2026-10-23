@@ -1,7 +1,7 @@
 # Manual de Usuario
 
 **Sistema de Control Operativo AGROMEDIO**
-**Versión 1.0 – septiembre 2026**
+**Versión 1.1 – octubre 2026**
 
 ---
 
@@ -27,7 +27,7 @@
 
 ![Ventana principal con ventanas internas](imagenes/ventana-principal.png)
 
-*Figura 1. Ventana principal: menús **Catálogos**, **Operación**, **Consultas y reportes** y **Ayuda**, con las ventanas internas abiertas en cascada. La barra inferior muestra la ruta de la base de datos y el nombre de la organización.*
+*Figura 1. Ventana principal: menús **Catálogos**, **Operación**, **Consultas y reportes** y **Ayuda**, con la ventana de reportes abierta en cascada. La barra inferior muestra la ruta de la base de datos y el nombre de la organización.*
 
 **Barra de estado:** muestra `Base de datos: ...` con la ruta del archivo `.db` que está utilizando el sistema.
 
@@ -36,7 +36,7 @@
 | Menú | Opciones | Ventana que abre |
 |---|---|---|
 | **Catálogos** | Clientes · Categorías · Unidades de medida · Proveedores · Productos | Ventana de consulta/alta/edición |
-| **Operación** | Plantillas operativas · Carga desde Excel (Módulo 0) · Compras (Módulo 1) · Recepción (Módulo 2) · Alistamiento / Producción (Módulo 3) · Despacho (Módulo 4) | Ventana del módulo |
+| **Operación** | Plantillas operativas · Carga desde archivo (Módulo 0) · Compras (Módulo 1) · Recepción (Módulo 2) · Alistamiento / Producción (Módulo 3) · Despacho (Módulo 4) | Ventana del módulo |
 | **Consultas y reportes** | Reportes operativos | Ventana de reportes |
 | **Ayuda** | Acerca del sistema | Diálogo con versión y ruta de BD |
 
@@ -53,10 +53,15 @@ CARGADA → EN_COMPRA → RECIBIENDO → ALISTANDO → LISTA → DESPACHADA
 
 ### 5.1 Paso 0 – Cargar la instrucción de administración (Módulo 0)
 
-1. Menú **Operación → Carga desde Excel (Módulo 0)**.
-2. Pulse **Examinar…** y seleccione el archivo `.xlsx` enviado por administración.
-3. Pulse **Cargar**. El sistema informa las filas procesadas y cualquier fila con observación.
-4. Verifique la carga en **Operación → Plantillas operativas**; seleccione la plantilla y pulse **Ver detalle** para revisar mercado por mercado.
+1. Menú **Operación → Carga desde archivo (Módulo 0)**.
+2. Pulse **Examinar…** y seleccione el archivo enviado por administración (`.xlsx`, `.xls`, `.csv` o `.txt`).
+3. Pulse **Cargar**. El sistema informa las filas procesadas, los productos nuevos creados en el catálogo y cualquier fila con observación.
+4. Si el mismo archivo ya se cargó antes, el sistema muestra **“Carga ya realizada”** y no duplica la demanda.
+5. Verifique la carga en **Operación → Plantillas operativas**; seleccione la plantilla y pulse **Ver detalle** para revisar mercado por mercado.
+
+**Formato del archivo.** La primera fila debe tener las columnas `Cliente`, `Contacto`, `Telefono`, `Mercado`, `Fecha`, `Producto` y `Cantidad`. En Excel se lee la primera hoja. En CSV/TXT se admite UTF-8 con o sin BOM, delimitador punto y coma, coma o tabulador, y campos entre comillas. La fecha puede venir como fecha de Excel o como texto `aaaa-mm-dd` o `dd/mm/aaaa`.
+
+La columna `Cantidad` acepta números o expresiones descriptivas: `9 unidades`, `1 de 300 gr`, `2 de 1000 ml`, `400 gramos`, `1 libra`, `0.25 libra` o `1 rama`. Si el producto no existe en **Catálogos → Productos**, se crea automáticamente con la unidad detectada y una presentación entre paréntesis cuando el texto la incluye, por ejemplo `Mantecada (300 gr)`. Después de cargar, revise el catálogo para ajustar categoría, unidad de compra y factor de conversión si es necesario.
 
 ### 5.2 Paso 1 – Compras (Módulo 1)
 
@@ -90,11 +95,13 @@ CARGADA → EN_COMPRA → RECIBIENDO → ALISTANDO → LISTA → DESPACHADA
 ### 5.5 Paso 4 – Despacho (Módulo 4)
 
 1. Menú **Operación → Despacho**.
-2. Seleccione la plantilla: se crea la **lista de chequeo** con todos los ítems.
-3. Vaya marcando cada ítem **en el momento en que lo coloque** en la bolsa o cesta del mercado.
-4. Pulse **Cerrar despacho**:
-   - Si falta algún ítem → se bloquea y se lista lo pendiente.
-   - Si todo está verificado → la plantilla pasa a **`DESPACHADA`** con avance del **100 %**.
+2. Seleccione la plantilla: se crea la **lista de chequeo** con la cantidad solicitada de cada ítem.
+3. Vaya marcando cada ítem **en el momento en que lo coloque** en la bolsa o cesta del mercado. La cantidad despachada debe ser mayor que cero y no puede superar lo solicitado.
+4. Si hay un faltante parcial, marque **Faltante aceptado** en ese ítem.
+5. Pulse **Cerrar despacho**:
+   - Si falta algún ítem, hay un faltante no aceptado o una cantidad inválida → se bloquea y se explica el motivo.
+   - Si hay faltante aceptado → la novedad es obligatoria; el mercado se cierra como **“despachado con novedad”**.
+   - Si todo está verificado y completo → la plantilla pasa a **`DESPACHADA`** con avance del **100 %**.
 
 ### 5.6 Reportes
 
@@ -123,9 +130,12 @@ Menú **Catálogos**: Clientes, Categorías, Unidades de medida y Proveedores; y
 | ¿Dónde quedan los datos? | En el archivo indicado en la barra de estado (`...\build\demo_smoke.db` o `agromedio.db` según el arranque). Copie ese archivo para respaldar. |
 | ¿Cómo restauro un respaldo? | Reemplace el archivo `.db` por la copia con el sistema cerrado. |
 | ¿Puedo tener el sistema abierto en dos equipos? | No: es de escritorio con archivo único. Para concurrencia multi-sede se requiere la versión con servidor. |
-| ¿Y si borré una plantilla por error? | Las operaciones destructivas piden confirmación; si confirmó, el registro se eliminó y debe recargarse desde el Excel original. |
+| ¿Hay usuarios y contraseñas? | No en esta versión. Es mono-usuario; el acceso se controla con la sesión de Windows. Los roles del manual son funciones del proceso, no cuentas. |
+| ¿Y si borré una plantilla por error? | Las operaciones destructivas piden confirmación; si confirmó, el registro se eliminó y debe recargarse desde el archivo original. |
+| El CSV/TXT no carga | Verifique que la primera fila tenga las 7 columnas, que el delimitador sea `;`, `,` o tabulador y que el archivo esté en UTF-8. |
+| La cantidad no se reconoce | Use un número (`9`) o un texto admitido (`9 unidades`, `1 de 300 gr`, `2 de 1000 ml`, `400 gramos`, `1 libra`, `0.25 libra`, `1 rama`). |
 | No encuentra Java | Instale un JDK 17+ o pida soporte; `ejecutar.bat` avisa si no encuentra el ejecutable. |
-| Mensaje de Log4j al cargar Excel | Es un aviso cosmético del lector de Excel; no afecta la operación. |
+| Mensaje de Log4j o `Skipped invalid entry /xl/sharedStrings.xml` al cargar Excel | Son avisos cosméticos del lector de Excel; no afectan la operación. |
 
 ## 8. Cierre y buenas prácticas
 

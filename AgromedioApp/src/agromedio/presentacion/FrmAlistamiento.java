@@ -21,6 +21,9 @@ import javax.swing.JTable;
 import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,6 +37,7 @@ public class FrmAlistamiento extends JInternalFrame {
 
     private final JComboBox<PlantillaOperativa> cmbPlantilla = new JComboBox<>();
     private final JLabel lblEstado = new JLabel("Sin alistamiento");
+    private final JLabel lblResumen = UiUtil.subtitulo("Seleccione un mercado para iniciar.");
     private final Map<Integer, Producto> productos = new HashMap<>();
 
     private DefaultTableModel modelo;
@@ -42,18 +46,19 @@ public class FrmAlistamiento extends JInternalFrame {
     private boolean cargando = false;
 
     public FrmAlistamiento() {
-        super("Alistamiento / Produccion", true, true, true, true);
+        super("Alistamiento / Producción", true, true, true, true);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        setSize(1000, 600);
+        setSize(1120, 680);
         setLayout(new BorderLayout(8, 8));
+        getContentPane().setBackground(Tema.FONDO);
 
         for (Producto p : productoDAO.listar()) {
             productos.put(p.getIdProducto(), p);
         }
 
         modelo = new DefaultTableModel(
-                new Object[]{"ID", "Producto", "Solicitado", "U.", "Equivalente U. compra",
-                        "Alistada", "Completado"}, 0) {
+                new Object[]{"Producto", "Solicitado", "Recibido", "U.",
+                        "Equivalente U. compra", "Alistada", "Completado"}, 0) {
             @Override
             public boolean isCellEditable(int f, int c) {
                 return (c == 5 || c == 6) && alistamientoActual != null
@@ -68,23 +73,50 @@ public class FrmAlistamiento extends JInternalFrame {
         JTable tabla = new JTable(modelo);
         UiUtil.prepararTabla(tabla);
         JScrollPane scroll = new JScrollPane(tabla);
-        scroll.setBorder(BorderFactory.createTitledBorder(
-                "Fraccionamiento de la mercancia - RF07 (conversion) y RF08 (avance)"));
+        scroll.setBorder(BorderFactory.createLineBorder(Tema.BORDE));
         add(scroll, BorderLayout.CENTER);
 
-        JPanel norte = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 8));
-        norte.add(new JLabel("Mercado:"));
-        norte.add(cmbPlantilla);
-        JButton btnIniciar = UiUtil.boton("Iniciar alistamiento");
-        norte.add(btnIniciar);
-        norte.add(lblEstado);
+        JPanel norte = new JPanel(new BorderLayout(8, 6));
+        norte.setOpaque(false);
+        norte.setBorder(BorderFactory.createEmptyBorder(8, 10, 2, 10));
+        norte.add(UiUtil.encabezado("Alistamiento y producción",
+                "Fraccione lo recibido y marque cada producto. No se puede alistar más de lo disponible."),
+                BorderLayout.NORTH);
+
+        JPanel barra = new JPanel(new GridBagLayout());
+        barra.setBackground(Tema.SUPERFICIE);
+        barra.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Tema.BORDE),
+                BorderFactory.createEmptyBorder(8, 10, 8, 10)));
+        GridBagConstraints g = new GridBagConstraints();
+        g.insets = new Insets(4, 6, 4, 6);
+        g.anchor = GridBagConstraints.WEST;
+        g.gridx = 0; g.gridy = 0;
+        barra.add(new JLabel("Mercado"), g);
+        g.gridx = 1; g.weightx = 1; g.fill = GridBagConstraints.HORIZONTAL;
+        cmbPlantilla.setPreferredSize(new java.awt.Dimension(380, 34));
+        barra.add(cmbPlantilla, g);
+        g.gridx = 2; g.weightx = 0; g.fill = GridBagConstraints.NONE;
+        JButton btnIniciar = UiUtil.botonSecundario("Iniciar alistamiento");
+        barra.add(btnIniciar, g);
+        g.gridx = 3;
+        lblEstado.setFont(Tema.PEQUENA.deriveFont(java.awt.Font.BOLD));
+        lblEstado.setForeground(Tema.PRIMARIO_OSCURO);
+        barra.add(lblEstado, g);
+        norte.add(barra, BorderLayout.CENTER);
         add(norte, BorderLayout.NORTH);
 
-        JButton btnGuardar = UiUtil.boton("Guardar avance");
-        JButton btnCompletar = UiUtil.boton("Completar alistamiento");
-        JPanel sur = new JPanel(new FlowLayout(FlowLayout.CENTER, 16, 10));
-        sur.add(btnGuardar);
-        sur.add(btnCompletar);
+        JButton btnGuardar = UiUtil.botonPrimario("Guardar avance");
+        JButton btnCompletar = UiUtil.botonSecundario("Completar alistamiento");
+        JPanel sur = new JPanel(new BorderLayout(8, 0));
+        sur.setOpaque(false);
+        sur.setBorder(BorderFactory.createEmptyBorder(4, 10, 8, 10));
+        JPanel acciones = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        acciones.setOpaque(false);
+        acciones.add(btnGuardar);
+        acciones.add(btnCompletar);
+        sur.add(acciones, BorderLayout.WEST);
+        sur.add(lblResumen, BorderLayout.EAST);
         add(sur, BorderLayout.SOUTH);
 
         cmbPlantilla.addActionListener(e -> cargar());
@@ -105,7 +137,7 @@ public class FrmAlistamiento extends JInternalFrame {
             cmbPlantilla.addItem(p);
         }
         if (cmbPlantilla.getItemCount() == 0) {
-            lblEstado.setText("No hay plantillas en recepcion/alistamiento.");
+            lblEstado.setText("No hay plantillas en recepción/alistamiento.");
         }
     }
 
@@ -143,10 +175,17 @@ public class FrmAlistamiento extends JInternalFrame {
             String equivalente = pr == null ? "" :
                     String.format("%.2f %s", d.getCantidadSolicitada() / pr.getFactorConversion(),
                             pr.getAbreviaturaCompra());
-            modelo.addRow(new Object[]{d.getIdDetalleAlistamiento(), d.getNombreProducto(),
-                    d.getCantidadSolicitada(), d.getAbreviatura(), equivalente,
-                    d.getCantidadAlistada(), d.isCompletado()});
+            modelo.addRow(new Object[]{d.getNombreProducto(),
+                    d.getCantidadSolicitada(), d.getCantidadRecibida(), d.getAbreviatura(),
+                    equivalente, d.getCantidadAlistada(), d.isCompletado()});
         }
+        int completos = 0;
+        for (DetalleAlistamiento d : detalles) {
+            if (d.isCompletado()) {
+                completos++;
+            }
+        }
+        lblResumen.setText(detalles.size() + " productos  |  " + completos + " completados");
         cargando = false;
     }
 
@@ -159,7 +198,7 @@ public class FrmAlistamiento extends JInternalFrame {
                 DetalleAlistamiento d = detalles.get(i);
                 Object cant = modelo.getValueAt(i, 5);
                 Object comp = modelo.getValueAt(i, 6);
-                d.setCantidadAlistada(cant == null ? 0 : Double.parseDouble(cant.toString().replace(',', '.')));
+                d.setCantidadAlistada(valor(cant));
                 d.setCompletado(Boolean.TRUE.equals(comp));
                 servicio.registrarAvance(alistamientoActual.getIdAlistamiento(), d);
             }
@@ -179,7 +218,7 @@ public class FrmAlistamiento extends JInternalFrame {
             boolean ok = servicio.completar(alistamientoActual.getIdAlistamiento(),
                     ((PlantillaOperativa) cmbPlantilla.getSelectedItem()).getIdPlantilla());
             if (ok) {
-                UiUtil.mensaje(this, "Alistamiento COMPLETO. El mercado paso a estado LISTA (listo para despacho).");
+                UiUtil.mensaje(this, "Alistamiento COMPLETO. El mercado pasó a estado LISTA (listo para despacho).");
             } else {
                 UiUtil.error(this, "Quedan productos sin marcar como completados.");
             }
@@ -194,9 +233,19 @@ public class FrmAlistamiento extends JInternalFrame {
             DetalleAlistamiento d = detalles.get(i);
             Object cant = modelo.getValueAt(i, 5);
             Object comp = modelo.getValueAt(i, 6);
-            d.setCantidadAlistada(cant == null ? 0 : Double.parseDouble(cant.toString().replace(',', '.')));
+            d.setCantidadAlistada(valor(cant));
             d.setCompletado(Boolean.TRUE.equals(comp));
             servicio.registrarAvance(alistamientoActual.getIdAlistamiento(), d);
         }
+    }
+
+    private static double valor(Object v) {
+        if (v == null) {
+            return 0;
+        }
+        if (v instanceof Number n) {
+            return n.doubleValue();
+        }
+        return Formato.decimal(v.toString());
     }
 }

@@ -59,10 +59,11 @@ public class RecepcionDAOSqlite implements RecepcionDAO {
                 ps.setDouble(4, d.getCantidadFaltante());
                 ps.executeUpdate();
             }
-            // El trigger recalculo el faltante: se recupera el valor oficial de la BD (RF06)
+            // El trigger recalculo el faltante acumulado: se recupera el valor oficial (RF06 / RN-06)
             try (PreparedStatement ps = c.prepareStatement(
                     "SELECT cantidad_faltante FROM detalle_recepcion "
-                    + "WHERE id_recepcion = ? AND id_detalle_compra = ?")) {
+                    + "WHERE id_recepcion = ? AND id_detalle_compra = ? "
+                    + "ORDER BY id_detalle_recepcion DESC LIMIT 1")) {
                 ps.setInt(1, d.getIdRecepcion());
                 ps.setInt(2, d.getIdDetalleCompra());
                 try (ResultSet rs = ps.executeQuery()) {
@@ -102,6 +103,41 @@ public class RecepcionDAOSqlite implements RecepcionDAO {
             }
         } catch (SQLException e) {
             throw new RuntimeException("Error al listar detalle de recepcion: " + e.getMessage(), e);
+        }
+        return lista;
+    }
+
+    @Override
+    public List<DetalleRecepcion> listarAcumuladoPorCompra(int idCompra) {
+        List<DetalleRecepcion> lista = new ArrayList<>();
+        String sql = "SELECT dc.id_detalle_compra, "
+                + "ROUND(COALESCE(SUM(dr.cantidad_recibida), 0), 2) AS recibida, "
+                + "ROUND(MAX(0, dc.cantidad_comprada - COALESCE(SUM(dr.cantidad_recibida), 0)), 2) AS faltante, "
+                + "pr.nombre, pv.nombre, dc.cantidad_comprada, um.abreviatura "
+                + "FROM detalle_compra dc "
+                + "JOIN compra c ON c.id_compra = dc.id_compra "
+                + "JOIN producto pr ON pr.id_producto = dc.id_producto "
+                + "JOIN proveedor pv ON pv.id_proveedor = dc.id_proveedor "
+                + "JOIN unidad_medida um ON um.id_unidad = pr.id_unidad_compra "
+                + "LEFT JOIN detalle_recepcion dr ON dr.id_detalle_compra = dc.id_detalle_compra "
+                + "WHERE dc.id_compra = ? "
+                + "GROUP BY dc.id_detalle_compra, pr.nombre, pv.nombre, dc.cantidad_comprada, um.abreviatura "
+                + "ORDER BY pr.nombre";
+        try (Connection c = ConexionBD.obtener(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, idCompra);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    DetalleRecepcion d = new DetalleRecepcion(
+                            0, 0, rs.getInt(1), rs.getDouble(2), rs.getDouble(3));
+                    d.setNombreProducto(rs.getString(4));
+                    d.setNombreProveedor(rs.getString(5));
+                    d.setCantidadComprada(rs.getDouble(6));
+                    d.setAbreviatura(rs.getString(7));
+                    lista.add(d);
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error al listar acumulado de recepcion: " + e.getMessage(), e);
         }
         return lista;
     }

@@ -44,6 +44,10 @@ public class FrmCompras extends JInternalFrame {
     private final DefaultTableModel modeloConsolidado = UiUtil.modelo(
             new Object[]{"Producto", "Demanda", "U.", "En compra", "Mercados", "Pendiente"}, false);
     private final JTextField txtFecha = UiUtil.campo();
+    private final JTabbedPane pestanias = new JTabbedPane();
+    private final JTable tablaConsolidado = new JTable(modeloConsolidado);
+    private final JLabel lblConsolidado = UiUtil.subtitulo("");
+    private final JButton btnPreparar = UiUtil.botonPrimario("Preparar compra pendiente");
 
     // Pestaña registro
     private final JComboBox<PlantillaOperativa> cmbPlantilla = new JComboBox<>();
@@ -52,15 +56,25 @@ public class FrmCompras extends JInternalFrame {
     private final JTextField txtCantidad = UiUtil.campo();
     private final DefaultTableModel modeloItems = UiUtil.modelo(
             new Object[]{"Producto", "Proveedor", "Cantidad", "U. compra"}, false);
+    private final JTable tablaItems = new JTable(modeloItems);
     private final List<DetalleCompra> items = new ArrayList<>();
+    private List<FilaConsolidado> consolidado = new ArrayList<>();
 
     public FrmCompras() {
         super("Compras", true, true, true, true);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        setSize(980, 620);
-        setLayout(new BorderLayout());
+        setSize(1120, 680);
+        setLayout(new BorderLayout(8, 8));
+        getContentPane().setBackground(Tema.FONDO);
 
-        JTabbedPane pestanias = new JTabbedPane();
+        JPanel norte = new JPanel(new BorderLayout());
+        norte.setOpaque(false);
+        norte.setBorder(BorderFactory.createEmptyBorder(8, 10, 0, 10));
+        norte.add(UiUtil.encabezado("Compras",
+                "Consolide la demanda del día y registre la compra del mercado seleccionado."),
+                BorderLayout.WEST);
+        add(norte, BorderLayout.NORTH);
+
         pestanias.setFont(UiUtil.FUENTE);
         pestanias.addTab("Consolidado de demanda (RF03)", crearTabConsolidado());
         pestanias.addTab("Registrar compra (RF04)", crearTabRegistro());
@@ -73,36 +87,50 @@ public class FrmCompras extends JInternalFrame {
 
     private JPanel crearTabConsolidado() {
         JPanel panel = new JPanel(new BorderLayout(8, 8));
+        panel.setBackground(Tema.FONDO);
         panel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
-        JPanel norte = new JPanel(new GridBagLayout());
-        GridBagConstraints g = new GridBagConstraints();
-        g.insets = new Insets(6, 6, 6, 6);
-        g.anchor = GridBagConstraints.WEST;
-        norte.add(new JLabel("Fecha programada (aaaa-mm-dd)"), g);
+        JPanel norte = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 4));
+        norte.setOpaque(false);
+        norte.add(new JLabel("Fecha programada"));
         txtFecha.setText(LocalDate.now().toString());
-        norte.add(txtFecha, g);
-        JButton btnActualizar = UiUtil.boton("Actualizar consolidado");
-        norte.add(btnActualizar, g);
+        txtFecha.setPreferredSize(new java.awt.Dimension(150, 34));
+        norte.add(txtFecha);
+        JButton btnActualizar = UiUtil.botonSecundario("Actualizar consolidado");
+        norte.add(btnActualizar);
+        norte.add(btnPreparar);
         panel.add(norte, BorderLayout.NORTH);
 
-        JTable tabla = new JTable(modeloConsolidado);
-        UiUtil.prepararTabla(tabla);
-        JScrollPane scroll = new JScrollPane(tabla);
-        scroll.setBorder(BorderFactory.createTitledBorder(
-                "Demanda total de todos los mercados del dia (los items pendientes se compran aqui)"));
+        UiUtil.prepararTabla(tablaConsolidado);
+        JScrollPane scroll = new JScrollPane(tablaConsolidado);
+        scroll.setBorder(BorderFactory.createLineBorder(Tema.BORDE));
         panel.add(scroll, BorderLayout.CENTER);
 
-        JLabel pie = new JLabel("RF03: el sistema suma automaticamente la demanda de todos los contratos activos del dia.");
-        pie.setFont(UiUtil.FUENTE_NEGRITA);
+        JPanel pie = new JPanel(new BorderLayout());
+        pie.setOpaque(false);
+        JLabel ayuda = UiUtil.subtitulo("Doble clic o 'Preparar compra' para llevar el pendiente a la pestaña de registro.");
+        pie.add(ayuda, BorderLayout.WEST);
+        pie.add(lblConsolidado, BorderLayout.EAST);
         panel.add(pie, BorderLayout.SOUTH);
 
         btnActualizar.addActionListener(e -> consolidar());
+        btnPreparar.addActionListener(e -> prepararCompra());
+        btnPreparar.setEnabled(false);
+        tablaConsolidado.getSelectionModel().addListSelectionListener(e -> actualizarBotonPreparar());
+        tablaConsolidado.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseClicked(java.awt.event.MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    prepararCompra();
+                }
+            }
+        });
         return panel;
     }
 
     private JPanel crearTabRegistro() {
         JPanel panel = new JPanel(new BorderLayout(8, 8));
+        panel.setBackground(Tema.FONDO);
         panel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 
         for (Producto p : productoDAO.listar()) {
@@ -113,9 +141,12 @@ public class FrmCompras extends JInternalFrame {
         }
 
         JPanel form = new JPanel(new GridBagLayout());
-        form.setBorder(BorderFactory.createTitledBorder("Producto a comprar"));
+        form.setBackground(Tema.SUPERFICIE);
+        form.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Tema.BORDE),
+                BorderFactory.createEmptyBorder(8, 10, 8, 10)));
         GridBagConstraints g = new GridBagConstraints();
-        g.insets = new Insets(6, 6, 6, 6);
+        g.insets = new Insets(5, 6, 5, 6);
         g.anchor = GridBagConstraints.WEST;
         g.fill = GridBagConstraints.HORIZONTAL;
 
@@ -139,21 +170,23 @@ public class FrmCompras extends JInternalFrame {
         g.gridx = 1; g.weightx = 1;
         form.add(txtCantidad, g);
 
-        JButton btnAgregar = UiUtil.boton("Agregar item");
+        JButton btnAgregar = UiUtil.botonSecundario("Agregar item");
         JPanel sur = new JPanel(new BorderLayout());
+        sur.setOpaque(false);
         sur.add(form, BorderLayout.CENTER);
-        JPanel filaBotones = new JPanel();
+        JPanel filaBotones = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 4));
+        filaBotones.setOpaque(false);
         filaBotones.add(btnAgregar);
         sur.add(filaBotones, BorderLayout.SOUTH);
 
-        JTable tablaItems = new JTable(modeloItems);
         UiUtil.prepararTabla(tablaItems);
         JScrollPane scroll = new JScrollPane(tablaItems);
-        scroll.setBorder(BorderFactory.createTitledBorder("Items de la compra"));
+        scroll.setBorder(BorderFactory.createLineBorder(Tema.BORDE));
 
-        JPanel botonesFinales = new JPanel();
-        JButton btnQuitar = UiUtil.boton("Quitar item");
-        JButton btnGuardar = UiUtil.boton("Guardar compra");
+        JPanel botonesFinales = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 4));
+        botonesFinales.setOpaque(false);
+        JButton btnQuitar = UiUtil.botonSecundario("Quitar item");
+        JButton btnGuardar = UiUtil.botonPrimario("Guardar compra");
         botonesFinales.add(btnQuitar);
         botonesFinales.add(btnGuardar);
 
@@ -172,7 +205,13 @@ public class FrmCompras extends JInternalFrame {
                 }
                 Producto p = (Producto) cmbProducto.getSelectedItem();
                 Proveedor pv = (Proveedor) cmbProveedor.getSelectedItem();
-                double cant = Double.parseDouble(txtCantidad.getText().trim().replace(',', '.'));
+                if (p == null || pv == null) {
+                    throw new IllegalArgumentException("Seleccione producto y proveedor.");
+                }
+                double cant = Formato.decimal(txtCantidad.getText());
+                if (cant <= 0) {
+                    throw new IllegalArgumentException("La cantidad debe ser mayor que cero.");
+                }
                 DetalleCompra d = new DetalleCompra();
                 d.setIdProducto(p.getIdProducto());
                 d.setIdProveedor(pv.getIdProveedor());
@@ -202,7 +241,7 @@ public class FrmCompras extends JInternalFrame {
                 int idCompra = servicio.registrarCompra(pl.getIdPlantilla(), null, new ArrayList<>(items));
                 items.clear();
                 modeloItems.setRowCount(0);
-                UiUtil.mensaje(this, "Compra #" + idCompra + " registrada. La plantilla paso a estado EN_COMPRA.");
+                UiUtil.mensaje(this, "Compra #" + idCompra + " registrada. La plantilla pasó a estado EN_COMPRA.");
                 cargarPlantillas();
                 consolidar();
             } catch (Exception ex) {
@@ -234,18 +273,52 @@ public class FrmCompras extends JInternalFrame {
     private void consolidar() {
         try {
             modeloConsolidado.setRowCount(0);
-            List<FilaConsolidado> filas = servicio.consolidar(txtFecha.getText().trim());
-            for (FilaConsolidado f : filas) {
+            consolidado = servicio.consolidar(txtFecha.getText().trim());
+            for (FilaConsolidado f : consolidado) {
                 modeloConsolidado.addRow(new Object[]{f.getProducto(),
-                        String.format("%.2f", f.getTotalSolicitado()), f.getUnidadDespacho(),
-                        String.format("%.2f", f.getTotalComprado()), f.getMercados(),
-                        String.format("%.2f", f.getPendiente())});
+                        f.getTotalSolicitado(), f.getUnidadDespacho(),
+                        f.getTotalComprado(), f.getMercados(),
+                        f.getPendiente()});
             }
-            if (filas.isEmpty()) {
+            lblConsolidado.setText(consolidado.size() + " producto(s) en el consolidado");
+            if (consolidado.isEmpty()) {
                 modeloConsolidado.addRow(new Object[]{"(sin demanda para la fecha)", "", "", "", "", ""});
             }
+            tablaConsolidado.clearSelection();
+            actualizarBotonPreparar();
         } catch (Exception e) {
             UiUtil.error(this, e);
         }
+    }
+
+    private void actualizarBotonPreparar() {
+        int fila = tablaConsolidado.getSelectedRow();
+        boolean disponible = fila >= 0 && fila < consolidado.size()
+                && consolidado.get(fila).getPendiente() > 0;
+        btnPreparar.setEnabled(disponible);
+    }
+
+    private void prepararCompra() {
+        int fila = tablaConsolidado.getSelectedRow();
+        if (fila < 0 || consolidado.isEmpty()) {
+            UiUtil.error(this, "Seleccione un producto del consolidado.");
+            return;
+        }
+        FilaConsolidado f = consolidado.get(fila);
+        if (f.getPendiente() <= 0) {
+            UiUtil.error(this, "El producto seleccionado no tiene pendiente por comprar.");
+            return;
+        }
+        for (int i = 0; i < cmbProducto.getItemCount(); i++) {
+            if (cmbProducto.getItemAt(i).getIdProducto() == f.getIdProducto()) {
+                cmbProducto.setSelectedIndex(i);
+                break;
+            }
+        }
+        double cantidadCompra = f.getFactorConversion() > 0
+                ? f.getPendiente() / f.getFactorConversion() : f.getPendiente();
+        txtCantidad.setText(Formato.numero(cantidadCompra));
+        pestanias.setSelectedIndex(1);
+        txtCantidad.requestFocusInWindow();
     }
 }

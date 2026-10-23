@@ -1,11 +1,14 @@
 package agromedio.logica;
 
+import agromedio.datos.CargaPlantillaDAO;
+import agromedio.datos.CargaPlantillaDAOSqlite;
 import agromedio.datos.ClienteDAO;
 import agromedio.datos.ClienteDAOSqlite;
 import agromedio.datos.PlantillaDAO;
 import agromedio.datos.PlantillaDAOSqlite;
 import agromedio.datos.ProductoDAO;
 import agromedio.datos.ProductoDAOSqlite;
+import agromedio.modelo.CargaPlantilla;
 import agromedio.modelo.Cliente;
 import agromedio.modelo.DetallePlantilla;
 import agromedio.modelo.PlantillaOperativa;
@@ -18,6 +21,11 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 
 import java.io.File;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.security.MessageDigest;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -27,27 +35,47 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Modulo 0 - Carga de instrucciones administrativas (RF01 y RF02).
- * Lee archivos .xlsx con columnas:
+ * Lee archivos .xlsx/.xls y archivos planos .csv/.txt con columnas:
  * Cliente | Contacto | Telefono | Mercado | Fecha (aaaa-mm-dd) | Producto | Cantidad
  * y los transforma en plantillas operativas persistentes.
  */
 public class CargaExcelServicio {
 
+    private static final DateTimeFormatter[] FORMATOS_FECHA = {
+            DateTimeFormatter.ofPattern("yyyy-MM-dd"),
+            DateTimeFormatter.ofPattern("dd/MM/yyyy"),
+            DateTimeFormatter.ISO_LOCAL_DATE
+    };
+
+    /** Acepta cantidades numericas o descriptivas: "9 unidades", "1 de 300 gr", "400 gramos". */
+    private static final Pattern PATRON_CANTIDAD =
+            Pattern.compile("^([+-]?\\d+(?:[.,]\\d+)?)\\s*(.*)$");
+
     private final ClienteDAO clienteDAO;
     private final ProductoDAO productoDAO;
     private final PlantillaDAO plantillaDAO;
+    private final CargaPlantillaDAO cargaDAO;
 
     public CargaExcelServicio() {
-        this(new ClienteDAOSqlite(), new ProductoDAOSqlite(), new PlantillaDAOSqlite());
+        this(new ClienteDAOSqlite(), new ProductoDAOSqlite(), new PlantillaDAOSqlite(),
+                new CargaPlantillaDAOSqlite());
     }
 
     public CargaExcelServicio(ClienteDAO clienteDAO, ProductoDAO productoDAO, PlantillaDAO plantillaDAO) {
+        this(clienteDAO, productoDAO, plantillaDAO, new CargaPlantillaDAOSqlite());
+    }
+
+    public CargaExcelServicio(ClienteDAO clienteDAO, ProductoDAO productoDAO,
+                              PlantillaDAO plantillaDAO, CargaPlantillaDAO cargaDAO) {
         this.clienteDAO = clienteDAO;
         this.productoDAO = productoDAO;
         this.plantillaDAO = plantillaDAO;
+        this.cargaDAO = cargaDAO;
     }
 
     public ResultadoCarga cargar(File archivo) throws Exception {
@@ -57,38 +85,58 @@ public class CargaExcelServicio {
             return res;
         }
 
+        String hash = hashSha256(archivo);
+        CargaPlantilla previa = cargaDAO.buscarPorHash(hash);
+        if (previa != null) {
+            res.setDuplicada(true);
+            res.getErrores().add("Carga ya realizada: el archivo '" + archivo.getName()
+                    + "' ya fue cargado el " + previa.getFechaCarga()
+                    + " (carga #" + previa.getIdCarga() + ").");
+            return res;
+        }
+
         Map<String, Producto> productos = new HashMap<>();
         for (Producto p : productoDAO.listar()) {
-            productos.put(p.getNombre().trim().toLowerCase(Locale.ROOT), p);
+            productos.put(clave(p.getNombre()), p);
         }
         Map<String, Cliente> clientes = new HashMap<>();
         for (Cliente cl : clienteDAO.listar()) {
-            clientes.put(cl.getNombreEntidad().trim().toLowerCase(Locale.ROOT), cl);
+            clientes.put(clave(cl.getNombreEntidad()), cl);
         }
 
         // Agrupa las filas por (cliente, mercado, fecha) preservando el orden del archivo
         Map<String, PlantillaOperativa> plantillas = new LinkedHashMap<>();
         Map<String, List<DetallePlantilla>> detalles = new LinkedHashMap<>();
 
-        try (Workbook wb = WorkbookFactory.create(archivo)) {
+        if (esArchivoPlano(archivo)) {
+            cargarPlano(archivo, res, productos, clientes, plantillas, detalles);
+        } else {
+            cargarLibroExcel(archivo, res, productos, clientes, plantillas, detalles);
+        }
+        persistir(archivo, hash, res, plantillas, detalles);
+        return res;
+    }
+
+    /** Lee un libro Excel y transforma sus filas al modelo comun. */
+    private void cargarLibroExcel(File archivo, ResultadoCarga res,
+                                  Map<String, Producto> productos, Map<String, Cliente> clientes,
+                                  Map<String, PlantillaOperativa> plantillas,
+                                  Map<String, List<DetallePlantilla>> detalles) throws Exception {
+        // Se lee por flujo para que Apache POI no reescriba el archivo y cambie su hash.
+        try (InputStream entrada = Files.newInputStream(archivo.toPath());
+             Workbook wb = WorkbookFactory.create(entrada)) {
             Sheet hoja = wb.getSheetAt(0);
             if (hoja == null || hoja.getLastRowNum() < 1) {
                 res.getErrores().add("El archivo no tiene datos.");
-                return res;
+                return;
             }
             String encabezado = textoCelda(hoja.getRow(0).getCell(0)).toLowerCase(Locale.ROOT);
             String encabezadoProducto = hoja.getRow(0).getCell(5) == null ? ""
                     : textoCelda(hoja.getRow(0).getCell(5)).toLowerCase(Locale.ROOT);
             if (!encabezado.contains("cliente") || !encabezadoProducto.contains("producto")) {
-                res.getErrores().add("Formato no reconocido. Se esperaba: Cliente | Contacto | Telefono | Mercado | Fecha | Producto | Cantidad");
-                return res;
+                res.getErrores().add(mensajeFormato());
+                return;
             }
-
-            DateTimeFormatter[] formatos = {
-                    DateTimeFormatter.ofPattern("yyyy-MM-dd"),
-                    DateTimeFormatter.ofPattern("dd/MM/yyyy"),
-                    DateTimeFormatter.ISO_LOCAL_DATE
-            };
 
             for (int i = 1; i <= hoja.getLastRowNum(); i++) {
                 Row fila = hoja.getRow(i);
@@ -96,63 +144,150 @@ public class CargaExcelServicio {
                     continue;
                 }
                 res.setLineasLeidas(res.getLineasLeidas() + 1);
-                int linea = i + 1;
+                procesarFila(res, i + 1,
+                        textoCelda(fila.getCell(0)).trim(),
+                        textoCelda(fila.getCell(1)).trim(),
+                        textoCelda(fila.getCell(2)).trim(),
+                        textoCelda(fila.getCell(3)).trim(),
+                        textoCelda(fila.getCell(4)).trim(),
+                        textoCelda(fila.getCell(5)).trim(),
+                        textoCelda(fila.getCell(6)).trim(),
+                        productos, clientes, plantillas, detalles);
+            }
+        }
+    }
 
-                String nombreCliente = textoCelda(fila.getCell(0)).trim();
-                String contacto = textoCelda(fila.getCell(1)).trim();
-                String telefono = textoCelda(fila.getCell(2)).trim();
-                String mercado = textoCelda(fila.getCell(3)).trim();
-                String textoFecha = textoCelda(fila.getCell(4)).trim();
-                String nombreProducto = textoCelda(fila.getCell(5)).trim();
-                double cantidad = numeroCelda(fila.getCell(6));
+    /** Lee CSV/TXT delimitado por coma, punto y coma o tabulador. */
+    private void cargarPlano(File archivo, ResultadoCarga res,
+                             Map<String, Producto> productos, Map<String, Cliente> clientes,
+                             Map<String, PlantillaOperativa> plantillas,
+                             Map<String, List<DetallePlantilla>> detalles) throws Exception {
+        List<String> lineas = Files.readAllLines(archivo.toPath(), StandardCharsets.UTF_8);
+        if (lineas.isEmpty()) {
+            res.getErrores().add("El archivo no tiene datos.");
+            return;
+        }
+        lineas.set(0, quitarBom(lineas.get(0)));
+        char separador = detectarSeparador(lineas.get(0));
+        List<String[]> filas = new ArrayList<>();
+        for (String linea : lineas) {
+            if (linea != null && !linea.trim().isEmpty()) {
+                filas.add(parsearLineaPlana(linea, separador));
+            }
+        }
+        if (filas.size() < 2) {
+            res.getErrores().add("El archivo no tiene datos.");
+            return;
+        }
+        String[] encabezado = filas.get(0);
+        if (encabezado.length < 7
+                || !valor(encabezado, 0).toLowerCase(Locale.ROOT).contains("cliente")
+                || !valor(encabezado, 5).toLowerCase(Locale.ROOT).contains("producto")) {
+            res.getErrores().add(mensajeFormato());
+            return;
+        }
 
-                if (nombreCliente.isEmpty() || mercado.isEmpty() || nombreProducto.isEmpty() || textoFecha.isEmpty()) {
-                    res.getErrores().add("Linea " + linea + ": faltan datos obligatorios (cliente, mercado, fecha o producto).");
-                    continue;
-                }
-                if (cantidad <= 0) {
-                    res.getErrores().add("Linea " + linea + ": la cantidad debe ser mayor que cero.");
-                    continue;
-                }
-                LocalDate fecha = parsearFecha(textoFecha, formatos);
-                if (fecha == null) {
-                    res.getErrores().add("Linea " + linea + ": fecha invalida '" + textoFecha + "' (use aaaa-mm-dd).");
-                    continue;
-                }
-                Producto producto = productos.get(nombreProducto.toLowerCase(Locale.ROOT));
-                if (producto == null) {
-                    res.getErrores().add("Linea " + linea + ": el producto '" + nombreProducto + "' no existe en el catalogo.");
-                    continue;
-                }
+        for (int i = 1; i < filas.size(); i++) {
+            String[] fila = filas.get(i);
+            res.setLineasLeidas(res.getLineasLeidas() + 1);
+            procesarFila(res, i + 1,
+                    valor(fila, 0), valor(fila, 1), valor(fila, 2), valor(fila, 3),
+                    valor(fila, 4), valor(fila, 5), valor(fila, 6),
+                    productos, clientes, plantillas, detalles);
+        }
+    }
 
-                String clave = nombreCliente.toLowerCase(Locale.ROOT) + "|" + mercado.toLowerCase(Locale.ROOT)
-                        + "|" + fecha;
-                PlantillaOperativa plantilla = plantillas.get(clave);
-                if (plantilla == null) {
-                    plantilla = new PlantillaOperativa();
-                    plantilla.setNombreMercado(mercado);
-                    plantilla.setFechaProgramada(fecha.toString());
-                    plantilla.setEstado(PlantillaOperativa.ESTADO_CARGADA);
-                    plantillas.put(clave, plantilla);
-                    detalles.put(clave, new ArrayList<>());
+    /** Valida una fila y la agrega al agrupamiento por mercado/fecha. */
+    private void procesarFila(ResultadoCarga res, int linea,
+                              String nombreCliente, String contacto, String telefono,
+                              String mercado, String textoFecha, String nombreProducto,
+                              String textoCantidad, Map<String, Producto> productos,
+                              Map<String, Cliente> clientes,
+                              Map<String, PlantillaOperativa> plantillas,
+                              Map<String, List<DetallePlantilla>> detalles) {
+        nombreCliente = nombreCliente.trim();
+        contacto = contacto.trim();
+        telefono = telefono.trim();
+        mercado = mercado.trim();
+        textoFecha = textoFecha.trim();
+        nombreProducto = nombreProducto.trim();
 
-                    Cliente cliente = clientes.get(nombreCliente.toLowerCase(Locale.ROOT));
-                    if (cliente == null) {
-                        cliente = new Cliente(0, nombreCliente, contacto, telefono);
-                        clienteDAO.guardar(cliente);
-                        clientes.put(nombreCliente.toLowerCase(Locale.ROOT), cliente);
-                    }
-                    plantilla.setIdCliente(cliente.getIdCliente());
-                }
+        if (nombreCliente.isEmpty() || mercado.isEmpty() || nombreProducto.isEmpty() || textoFecha.isEmpty()) {
+            res.getErrores().add("Linea " + linea + ": faltan datos obligatorios (cliente, mercado, fecha o producto).");
+            return;
+        }
 
-                DetallePlantilla det = new DetallePlantilla();
-                det.setIdProducto(producto.getIdProducto());
-                det.setCantidadSolicitada(cantidad);
-                detalles.get(clave).add(det);
+        CantidadArchivo cantidad = interpretarCantidad(textoCantidad, nombreProducto);
+        if (cantidad == null) {
+            res.getErrores().add("Linea " + linea + ": cantidad invalida '" + textoCantidad.trim()
+                    + "' (use un numero o un texto como '9 unidades', '1 de 300 gr' o '400 gramos').");
+            return;
+        }
+        if (cantidad.valor <= 0) {
+            res.getErrores().add("Linea " + linea + ": la cantidad debe ser mayor que cero.");
+            return;
+        }
+        nombreProducto = cantidad.nombreProducto;
+
+        LocalDate fecha = parsearFecha(textoFecha, FORMATOS_FECHA);
+        if (fecha == null) {
+            res.getErrores().add("Linea " + linea + ": fecha invalida '" + textoFecha
+                    + "' (use aaaa-mm-dd o dd/mm/aaaa).");
+            return;
+        }
+        Producto producto = productos.get(clave(nombreProducto));
+        if (producto == null) {
+            producto = new Producto(0, nombreProducto, categoriaPara(nombreProducto),
+                    cantidad.idUnidad, cantidad.idUnidad, 1.0);
+            productoDAO.guardar(producto);
+            productos.put(clave(nombreProducto), producto);
+            res.setProductosCreados(res.getProductosCreados() + 1);
+        }
+
+        String clavePlantilla = clave(nombreCliente) + "|" + clave(mercado) + "|" + fecha;
+        PlantillaOperativa plantilla = plantillas.get(clavePlantilla);
+        if (plantilla == null) {
+            plantilla = new PlantillaOperativa();
+            plantilla.setNombreMercado(mercado);
+            plantilla.setFechaProgramada(fecha.toString());
+            plantilla.setEstado(PlantillaOperativa.ESTADO_CARGADA);
+            plantillas.put(clavePlantilla, plantilla);
+            detalles.put(clavePlantilla, new ArrayList<>());
+
+            Cliente cliente = clientes.get(clave(nombreCliente));
+            if (cliente == null) {
+                cliente = new Cliente(0, nombreCliente, contacto, telefono);
+                clienteDAO.guardar(cliente);
+                clientes.put(clave(nombreCliente), cliente);
+            }
+            plantilla.setIdCliente(cliente.getIdCliente());
+        }
+
+        DetallePlantilla det = new DetallePlantilla();
+        det.setIdProducto(producto.getIdProducto());
+        det.setCantidadSolicitada(cantidad.valor);
+        detalles.get(clavePlantilla).add(det);
+    }
+
+    /** Persiste la carga y sus plantillas (RF02 / G05). */
+    private void persistir(File archivo, String hash, ResultadoCarga res,
+                           Map<String, PlantillaOperativa> plantillas,
+                           Map<String, List<DetallePlantilla>> detalles) {
+        if (!plantillas.isEmpty()) {
+            int totalProductos = detalles.values().stream().mapToInt(List::size).sum();
+            CargaPlantilla carga = new CargaPlantilla();
+            carga.setNombreArchivo(archivo.getName());
+            carga.setHashArchivo(hash);
+            carga.setUsuario(System.getProperty("user.name", "OPERADOR"));
+            carga.setPlantillasCreadas(plantillas.size());
+            carga.setProductosRegistrados(totalProductos);
+            int idCarga = cargaDAO.guardar(carga);
+            res.setIdCarga(idCarga);
+            for (PlantillaOperativa p : plantillas.values()) {
+                p.setIdCarga(idCarga);
             }
         }
 
-        // Persistencia (RF02): transforma las filas en registros estructurados
         for (Map.Entry<String, PlantillaOperativa> e : plantillas.entrySet()) {
             PlantillaOperativa p = e.getValue();
             plantillaDAO.guardar(p);
@@ -163,7 +298,206 @@ public class CargaExcelServicio {
                 res.setProductosRegistrados(res.getProductosRegistrados() + 1);
             }
         }
-        return res;
+    }
+
+    private static boolean esArchivoPlano(File archivo) {
+        String nombre = archivo.getName().toLowerCase(Locale.ROOT);
+        return nombre.endsWith(".csv") || nombre.endsWith(".txt");
+    }
+
+    private static String mensajeFormato() {
+        return "Formato no reconocido. Se esperaba: Cliente | Contacto | Telefono | Mercado | Fecha | Producto | Cantidad";
+    }
+
+    private static String valor(String[] fila, int indice) {
+        return indice < fila.length && fila[indice] != null ? fila[indice].trim() : "";
+    }
+
+    /**
+     * Interpreta la columna Cantidad. Acepta numeros y expresiones habituales
+     * de la plantilla administrativa: "9 unidades", "1 de 300 gr",
+     * "2 de 1000 ml", "1 libra", "0.25 libra" o "400 gramos".
+     */
+    private static CantidadArchivo interpretarCantidad(String texto, String nombreProducto) {
+        if (texto == null) {
+            return null;
+        }
+        String limpio = texto.trim().replace(',', '.');
+        if (limpio.isEmpty()) {
+            return null;
+        }
+        Matcher m = PATRON_CANTIDAD.matcher(limpio);
+        if (!m.matches()) {
+            return null;
+        }
+        double valor;
+        try {
+            valor = Double.parseDouble(m.group(1));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+
+        String resto = m.group(2).trim();
+        String restoNormalizado = normalizar(resto);
+        String producto = nombreProducto.trim();
+        int unidad;
+
+        if (restoNormalizado.startsWith("de ")) {
+            // "1 de 300 gr": una presentacion de 300 gr, no 300 unidades.
+            producto = producto + " (" + resto.substring(3).trim() + ")";
+            unidad = 6; // Unidad
+        } else if (restoNormalizado.contains("gramo") || restoNormalizado.matches(".*\\bgr\\b.*")) {
+            valor = valor / 1000.0;
+            unidad = 2; // Kilogramo
+        } else if (restoNormalizado.contains("mililitro") || restoNormalizado.matches(".*\\bml\\b.*")) {
+            valor = valor / 1000.0;
+            unidad = 1; // Litro
+        } else if (restoNormalizado.contains("litro") || restoNormalizado.matches(".*\\bl\\b.*")) {
+            unidad = 1; // Litro
+        } else if (restoNormalizado.contains("libra") || restoNormalizado.matches(".*\\blb\\b.*")) {
+            unidad = 3; // Libra
+        } else if (restoNormalizado.contains("kilo") || restoNormalizado.matches(".*\\bkg\\b.*")) {
+            unidad = 2; // Kilogramo
+        } else if (restoNormalizado.contains("quintal")) {
+            unidad = 7;
+        } else if (restoNormalizado.contains("bulto")) {
+            unidad = 4;
+        } else if (restoNormalizado.contains("caja")) {
+            unidad = 5;
+        } else if (restoNormalizado.contains("galon")) {
+            unidad = 8;
+        } else if (restoNormalizado.contains("docena")) {
+            valor = valor * 12.0;
+            unidad = 6;
+        } else {
+            unidad = 6; // Unidad: "9 unidades", "1 rama", "1 unidad"
+        }
+
+        valor = Math.round(valor * 1000.0) / 1000.0;
+        return new CantidadArchivo(valor, unidad, producto);
+    }
+
+    private static int categoriaPara(String nombreProducto) {
+        String n = normalizar(nombreProducto);
+        if (n.contains("leche") || n.contains("queso") || n.contains("yogurt")) {
+            return 1; // Lacteos
+        }
+        if (n.contains("carne") || n.contains("pollo") || n.contains("pechuga")
+                || n.contains("higado") || n.contains("filete") || n.contains("basa")) {
+            return 3; // Carnes y proteinas
+        }
+        if (n.contains("huevo")) {
+            return 7; // Huevos
+        }
+        if (n.contains("arroz") || n.contains("avena") || n.contains("granola") || n.contains("harina")
+                || n.contains("lenteja") || n.contains("macarron") || n.contains("spaguetti")
+                || n.contains("spaghetti") || n.contains("panela")) {
+            return 4; // Legumbres y cereales
+        }
+        if (n.contains("papa") || n.contains("yuca") || n.contains("platano") || n.contains("tomate")
+                || n.contains("cebolla") || n.contains("zanahoria") || n.contains("lechuga")
+                || n.contains("pepino") || n.contains("pimenton") || n.contains("remolacha")
+                || n.contains("habichuela") || n.contains("cilantro") || n.contains("perejil")
+                || n.contains("apio") || n.contains("aguacate") || n.contains("calabazin")
+                || n.contains("limon") || n.contains("lulo") || n.contains("guayaba")
+                || n.contains("mango") || n.contains("papaya") || n.contains("patilla")
+                || n.contains("banano") || n.contains("durazno") || n.contains("fresa")
+                || n.contains("mora") || n.contains("manzana") || n.contains("pera")
+                || n.contains("mandarina")) {
+            return 6; // Frutas y verduras
+        }
+        return 5; // Abarrotes
+    }
+
+    private static String clave(String texto) {
+        return normalizar(texto);
+    }
+
+    private static String normalizar(String texto) {
+        if (texto == null) {
+            return "";
+        }
+        String n = Normalizer.normalize(texto, Normalizer.Form.NFD);
+        n = n.replaceAll("\\p{M}", "");
+        return n.toLowerCase(Locale.ROOT).trim().replaceAll("\\s+", " ");
+    }
+
+    private static final class CantidadArchivo {
+        final double valor;
+        final int idUnidad;
+        final String nombreProducto;
+
+        CantidadArchivo(double valor, int idUnidad, String nombreProducto) {
+            this.valor = valor;
+            this.idUnidad = idUnidad;
+            this.nombreProducto = nombreProducto;
+        }
+    }
+
+    private static String quitarBom(String texto) {
+        return texto != null && texto.startsWith("\uFEFF") ? texto.substring(1) : texto;
+    }
+
+    private static char detectarSeparador(String encabezado) {
+        char[] candidatos = {';', ',', '\t'};
+        char elegido = ';';
+        int maximo = -1;
+        for (char c : candidatos) {
+            int cuenta = contarFueraComillas(encabezado, c);
+            if (cuenta > maximo) {
+                maximo = cuenta;
+                elegido = c;
+            }
+        }
+        return elegido;
+    }
+
+    private static int contarFueraComillas(String linea, char separador) {
+        boolean comillas = false;
+        int cuenta = 0;
+        for (int i = 0; i < linea.length(); i++) {
+            char c = linea.charAt(i);
+            if (c == '"') {
+                comillas = !comillas;
+            } else if (c == separador && !comillas) {
+                cuenta++;
+            }
+        }
+        return cuenta;
+    }
+
+    private static String[] parsearLineaPlana(String linea, char separador) {
+        List<String> campos = new ArrayList<>();
+        StringBuilder campo = new StringBuilder();
+        boolean comillas = false;
+        for (int i = 0; i < linea.length(); i++) {
+            char c = linea.charAt(i);
+            if (c == '"') {
+                if (comillas && i + 1 < linea.length() && linea.charAt(i + 1) == '"') {
+                    campo.append('"');
+                    i++;
+                } else {
+                    comillas = !comillas;
+                }
+            } else if (c == separador && !comillas) {
+                campos.add(campo.toString());
+                campo.setLength(0);
+            } else {
+                campo.append(c);
+            }
+        }
+        campos.add(campo.toString());
+        return campos.toArray(new String[0]);
+    }
+
+    private static String hashSha256(File archivo) throws Exception {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        byte[] digest = md.digest(Files.readAllBytes(archivo.toPath()));
+        StringBuilder hex = new StringBuilder(digest.length * 2);
+        for (byte b : digest) {
+            hex.append(String.format("%02x", b));
+        }
+        return hex.toString();
     }
 
     private void plantillasCreadas(ResultadoCarga res) {
@@ -198,18 +532,4 @@ public class CargaExcelServicio {
         return celda.toString();
     }
 
-    private static double numeroCelda(Cell celda) {
-        if (celda == null) {
-            return 0;
-        }
-        if (celda.getCellType() == CellType.NUMERIC) {
-            return celda.getNumericCellValue();
-        }
-        try {
-            String t = celda.toString().trim().replace(',', '.');
-            return t.isEmpty() ? 0 : Double.parseDouble(t);
-        } catch (NumberFormatException e) {
-            return -1;
-        }
-    }
 }

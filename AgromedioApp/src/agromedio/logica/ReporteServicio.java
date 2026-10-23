@@ -5,6 +5,7 @@ import agromedio.datos.ConsultaDAOSqlite;
 import agromedio.modelo.FilaAvance;
 import agromedio.modelo.FilaConsolidado;
 import agromedio.modelo.FilaFaltante;
+import agromedio.modelo.Despacho;
 import agromedio.modelo.FilaSaldo;
 
 import java.time.LocalDate;
@@ -99,9 +100,12 @@ public class ReporteServicio {
             sb.append("No hay despachos registrados.\n");
         } else {
             for (FilaAvance f : filas) {
-                sb.append(String.format("%s | %s | %d/%d items verificados (%.1f%%) | %s%n",
+                String clasificacion = !Despacho.DESPACHADA.equals(f.getEstado())
+                        ? "EN VERIFICACION"
+                        : (f.isConNovedad() ? "CON NOVEDAD" : "COMPLETO");
+                sb.append(String.format("%s | %s | %d/%d items verificados (%.1f%%) | %s | %s%n",
                         f.getFechaDespacho(), f.getNombreMercado(), f.getVerificados(), f.getItems(),
-                        f.getPorcentaje(), f.getEstado()));
+                        f.getPorcentaje(), f.getEstado(), clasificacion));
             }
         }
         return sb.toString();

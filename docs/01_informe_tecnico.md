@@ -11,18 +11,19 @@
 | Alumnos | Santiago Colmenares Parra, CC. 1.098.680.530, santiagocolmenares@uts.edu.co, 316-1252116 |
 | | Califa Hernández Iván Mauricio, CC. 1.127.339.240, icalifa@uts.edu.co, 302-6065830 |
 | | Jorge Andrés Correa Morales, CC. 1.097.101.052, jorgeandrescorrea12@gmail.com, 317-5712960 |
+| | Jaider Martínez, CC. 1.064.066.256 |
 | Tutores / docentes | Elsa Patricia Carvajal Valero, Laura Cristina Duarte Quintero, Carlos Adolfo Beltran Castro |
 | Institución | Unidades Tecnológicas de Santander – Facultad de Ciencias Naturales e Ingenierías |
 | Programa | Tecnología en Desarrollo de Sistemas Informáticos |
 | Materias | 1750-213806-B191-TSI304 Planeación de Sistemas Informáticos · 1750-213848-D191-TSI301 Motores de Bases de Datos · 1750-213807-B191-TSI302 Programación Orientada a Objetos |
 | Cliente | Asociación Agropecuaria y Ambiental del Magdalena Medio – Agromedio |
-| Fecha | Bucaramanga, Santander, 12 de septiembre de 2026 |
+| Fecha | Bucaramanga, Santander, 22 de octubre de 2026 |
 
 ---
 
 ## RESUMEN EJECUTIVO
 
-La empresa Agromedio recibe a diario instrucciones de producción en archivos de hoja de cálculo que la administración envía sin estructura uniforme, y ejecuta después cuatro etapas operativas —compras, recepción, alistamiento y despacho— con control manual, lo que provoca faltantes de mercancía, sobrecostos y reclamos por mercados incompletos. Este proyecto desarrolló un sistema de información de escritorio que automatiza el ciclo completo de la operación: carga de instrucciones desde archivos `.xlsx`, consolidación automática de compras, registro de recepción con cálculo explícito de faltantes, control del avance de alistamiento y verificación paso a paso del despacho por mercado. La solución se implementó en Java sobre una arquitectura multicapa de presentación, lógica de negocio y acceso a datos, con interfaz gráfica Swing, persistencia en base de datos SQLite con integridad referencial, disparadores y vistas, y lectura de hojas de cálculo mediante Apache POI. La verificación se realizó con suites automatizadas que validan la base de datos, los diez requerimientos funcionales y la construcción de las trece ventanas del sistema, obteniendo resultados satisfactorios en la totalidad de las pruebas. Como resultado, la organización dispone de un prototipo funcional que traza cada cantidad solicitada desde la instrucción original hasta la entrega verificada, eliminando la sumatoria manual y garantizando que ningún mercado salga sin el cien por ciento de sus ítems confirmados.
+La empresa Agromedio recibe a diario instrucciones de producción en archivos de hoja de cálculo o planos que la administración envía sin estructura uniforme, y ejecuta después cuatro etapas operativas —compras, recepción, alistamiento y despacho— con control manual, lo que provoca faltantes de mercancía, sobrecostos y reclamos por mercados incompletos. Este proyecto desarrolló un sistema de información de escritorio que automatiza el ciclo completo de la operación: carga de instrucciones desde `.xlsx`, `.xls`, `.csv` y `.txt`, consolidación automática de compras, registro de recepción con cálculo explícito de faltantes, control del avance de alistamiento y verificación paso a paso del despacho por mercado. La solución se implementó en Java sobre una arquitectura multicapa de presentación, lógica de negocio y acceso a datos, con interfaz gráfica Swing, persistencia en base de datos SQLite con integridad referencial, disparadores y vistas, lectura de hojas de cálculo mediante Apache POI y lector propio para archivos planos. La verificación se realizó con suites automatizadas que validan la base de datos, los diez requerimientos funcionales y la construcción de las trece ventanas del sistema, obteniendo **65/65 pruebas satisfactorias**. Como resultado, la organización dispone de un prototipo funcional que traza cada cantidad solicitada desde la instrucción original hasta la entrega verificada, elimina la sumatoria manual y deja explícitos los faltantes aceptados con su novedad.
 
 **PALABRAS CLAVE:** sistema operativo, control de operaciones, base de datos, aplicación de escritorio, trazabilidad.
 
@@ -146,11 +147,11 @@ Población: los procesos operativos diarios de Agromedio correspondientes a una 
 
 ### 4.1 Levantamiento y definición del alcance
 
-De la visita a planta se consolidó el ciclo operativo en cinco etapas con un responsable por etapa y reglas de negocio explícitas: la plantilla define el día de trabajo; compras consolida y adquiere; recepción registra y detecta faltantes; alistamiento fracciona y arma; despacho verifica y cierra. Se definieron diez requerimientos funcionales (RF01–RF10) agrupados en cinco módulos y cuatro no funcionales (RNF01–RNF04), documentados en la matriz de trazabilidad (Anexo 1).
+De la visita a planta se consolidó el ciclo operativo en cinco etapas con un responsable por etapa y reglas de negocio explícitas: la plantilla define el día de trabajo; compras consolida y adquiere; recepción registra y detecta faltantes; alistamiento fracciona y arma; despacho verifica y cierra. Se definieron diez requerimientos funcionales (RF01–RF10) agrupados en cinco módulos y cuatro no funcionales (RNF01–RNF04), documentados en la matriz de trazabilidad (Anexo 1). La versión entregada es mono-usuario y no incluye autenticación ni permisos (D06); los roles del proceso son actores funcionales y el acceso se controla con la sesión del sistema operativo.
 
 ### 4.2 Diseño de la base de datos
 
-El modelo se documentó en el diagrama entidad-relación aprobado por el cliente y se implementó con quince tablas en SQLite con restricción `STRICT`, llaves foráneas activadas en cada conexión, tres vistas de consulta (`v_faltantes_recepcion`, `v_saldo_plantilla`, `v_avance_despacho`), un disparador que recalcula el faltante de recepción al registrar cada detalle, e índices sobre las columnas de filtro frecuente. El ciclo operativo se modela con los estados `CARGADA → EN_COMPRA → RECIBIENDO → ALISTANDO → LISTA → DESPACHADA`, y las transiciones están protegidas por validación en la lógica de negocio y por restricciones `CHECK` en la base de datos. Las unidades se manejan con factor de conversión por producto para operar simultáneamente en unidades de despacho, de compra y de venta. Los guiones completos se entregan en `docs/base_de_datos/`.
+El modelo se documentó en el diagrama entidad-relación aprobado por el cliente y se implementó con dieciséis tablas en SQLite con restricción `STRICT`, llaves foráneas activadas en cada conexión, tres vistas de consulta (`v_faltantes_recepcion`, `v_saldo_plantilla`, `v_avance_despacho`), un disparador que recalcula el faltante de recepción al registrar cada detalle, cinco disparadores de integridad (histórico y cero en alistamiento/despacho), e índices sobre las columnas de filtro frecuente. El diccionario completo está en `docs/08_diccionario_datos.md`. La tabla `carga_plantilla` conserva el hash SHA-256 único de cada archivo y agrupa las plantillas mediante `plantilla_operativa.id_carga`. El ciclo operativo se modela con los estados `CARGADA → EN_COMPRA → RECIBIENDO → ALISTANDO → LISTA → DESPACHADA`, y las transiciones están protegidas por validación en la lógica de negocio y por restricciones `CHECK` en la base de datos. Las unidades se manejan con factor de conversión por producto para operar simultáneamente en unidades de despacho, de compra y de venta. Los guiones completos se entregan en `docs/base_de_datos/`.
 
 ### 4.3 Arquitectura del software
 
@@ -158,16 +159,16 @@ El sistema se organiza en cuatro paquetes que corresponden a las capas de la arq
 
 | Paquete | Contenido | Responsabilidad |
 |---|---|---|
-| `agromedio.modelo` | 19 clases de datos (POJO) | Representación de entidades y estados |
-| `agromedio.datos` | Conexión única + 10 interfaces DAO + 10 implementaciones SQLite | Acceso a datos y persistencia |
-| `agromedio.logica` | Servicios de carga Excel, plantilla, compra, recepción, alistamiento, despacho y reportes | Reglas de negocio y transiciones de estado |
-| `agromedio.presentacion` | Aplicación, ventana principal y 14 ventanas internas | Interfaz Swing de escritorio |
+| `agromedio.modelo` | 20 clases de datos (POJO) | Representación de entidades y estados |
+| `agromedio.datos` | Conexión única + 12 interfaces DAO + 12 implementaciones SQLite | Acceso a datos y persistencia |
+| `agromedio.logica` | Servicios de carga de archivos, plantilla, compra, recepción, alistamiento, despacho y reportes | Reglas de negocio y transiciones de estado |
+| `agromedio.presentacion` | Aplicación, ventana principal y 13 ventanas internas | Interfaz Swing de escritorio |
 
 Las interfaces DAO desacoplan la lógica del motor de persistencia; la conexión única centraliza los `PRAGMA` de integridad; y ningún componente de presentación ejecuta SQL directamente. La interfaz gráfica usa un escritorio de ventanas internas con menús por módulo, diálogos de confirmación para toda operación destructiva y mensajes de error en lenguaje del usuario (RNF01: botones grandes, flujos cortos y foco visible).
 
 ### 4.4 Módulos implementados
 
-**Módulo 0 – Carga de datos (RF01, RF02).** Ventana de selección de archivo `.xlsx`, lectura con Apache POI, validación de columnas y creación atómica de plantilla, mercados, clientes y cantidades, con reporte detallado de filas procesadas y observadas.
+**Módulo 0 – Carga de datos (RF01, RF02).** Ventana de selección de archivo `.xlsx`, `.xls`, `.csv` o `.txt`, lectura con Apache POI para Excel y lector propio para archivos planos, validación de columnas y creación atómica de plantilla, mercados, clientes y cantidades, con reporte detallado de filas procesadas y observadas. Los archivos planos admiten UTF-8/BOM, delimitador `;`, `,` o tabulador y campos entre comillas. Cada archivo se registra en `carga_plantilla` con hash SHA-256; si se intenta cargar de nuevo, el sistema muestra "Carga ya realizada" y no duplica la demanda.
 
 **Módulo 1 – Compras (RF03, RF04).** Consolidado automático de cantidades por producto sobre plantillas activas, lista de chequeo para marcar productos adquiridos con proveedor y fecha, y bloqueo de productos duplicados.
 
@@ -175,7 +176,7 @@ Las interfaces DAO desacoplan la lógica del motor de persistencia; la conexión
 
 **Módulo 3 – Alistamiento (RF07, RF08).** Copia de los productos de la plantilla como tareas de alistamiento, marcación individual de ítems completados y bloqueo de cierre mientras existan ítems pendientes.
 
-**Módulo 4 – Despacho (RF09, RF10).** Lista de chequeo paso a paso por mercado, verificación individual de cada ítem, bloqueo de cierre con ítems sin verificar y marca final `DESPACHADA` al cien por ciento.
+**Módulo 4 – Despacho (RF09, RF10).** Lista de chequeo paso a paso por mercado, verificación individual de cada ítem, control de la cantidad solicitada y del faltante aceptado, bloqueo de cierre con ítems sin verificar o faltantes no aceptados, novedad obligatoria cuando hay faltante parcial y marca final `DESPACHADA` al cien por ciento. La interfaz y el reporte distinguen “completo” de “con novedad”.
 
 **Reportes (RF03, RF06).** Faltantes de recepción por proveedor, saldo de mercado por fecha y consolidado de productos, con vista previa e impresión.
 
@@ -185,7 +186,7 @@ Las interfaces DAO desacoplan la lógica del motor de persistencia; la conexión
 |---|---|---|
 | Lenguaje (POO) | Java 17+ (compilado con `--release 17`; ejecutado con JDK 21) | POO por capas: modelo, DAO, servicios, presentación |
 | Base de datos | **SQLite** (driver xerial 3.46) | Archivo único, sin servidor; integridad FK/trigger/vistas. Sustituye a PostgreSQL/MySQL del planteamiento inicial: el prototipo es de escritorio en una sola sede y debe instalarse sin administrar servicios; el modelo es portable a servidor sin cambiar la lógica |
-| Lectura de hojas de cálculo | Apache POI 5.2.5 | Procesa `.xlsx` de administración (RF01) |
+| Lectura de archivos | Apache POI 5.2.5 + lector CSV/TXT | Procesa `.xlsx`/`.xls` y archivos planos de administración (RF01) |
 | Interfaz gráfica | Swing (JFrame + JInternalFrame) | Estándar del JDK, sin dependencias adicionales |
 | IDE / build | NetBeans 21 + Ant (`build.xml`) | `ant jar`, `ant pruebas`, `ant pruebas-vistas` |
 | Pruebas | Suites Java ejecutables (`agromedio.pruebas`) | BD desechable por suite |
@@ -197,19 +198,19 @@ Las interfaces DAO desacoplan la lógica del motor de persistencia; la conexión
 
 ### 5.1 Producto construido
 
-La aplicación de escritorio **Sistema de Control Operativo AGROMEDIO** quedó funcional y empaquetada en `dist/AgromedioApp.jar` con su carpeta `lib/` de dependencias y un lanzador `ejecutar.bat` de doble clic. Incluye trece ventanas: cuatro catálogos, productos, plantillas, detalle de plantilla, carga Excel, compras, recepción, alistamiento, despacho y reportes.
+La aplicación de escritorio **Sistema de Control Operativo AGROMEDIO** quedó funcional y empaquetada en `dist/AgromedioApp.jar` con su carpeta `lib/` de dependencias y un lanzador `ejecutar.bat` de doble clic. Incluye trece ventanas: cuatro catálogos, productos, plantillas, detalle de plantilla, carga de archivos, compras, recepción, alistamiento, despacho y reportes.
 
-![Ventana principal con ventanas internas en cascada](imagenes/ventana-principal.png)
+![Ventana principal con la ventana de reportes en cascada](imagenes/ventana-principal.png)
 
-*Figura 1. Ventana principal con menús por módulo y ventanas internas de plantillas, compras y reportes.*
+*Figura 1. Ventana principal con menús por módulo y la ventana de reportes en cascada.*
 
 ### 5.2 Verificación de la base de datos
 
-Se ejecutó la suite `PruebaEsquema` (10 verificaciones: creación de las 15 tablas, siembra de datos del ciclo, cálculo del faltante de 7 litros mediante disparador, bloqueo de llaves foráneas y de estados inválidos, contenido de las tres vistas, consolidado RF03 y factor de conversión) con resultado **10/10 satisfactorio**.
+Se ejecutó la suite `PruebaEsquema` (20 verificaciones: creación de las 16 tablas, siembra de datos del ciclo, cálculo del faltante de 7 litros mediante disparador, bloqueo de llaves foráneas y de estados inválidos, contenido de las tres vistas, consolidado RF03, factor de conversión, acumulación del faltante entre entregas parciales, marca de faltante aceptado en el despacho, protección del histórico, bloqueo de cero en compra, alistamiento y despacho, y hash único de carga) con resultado **20/20 satisfactorio**.
 
 ### 5.3 Verificación de los requerimientos funcionales
 
-La suite `PruebaLogica` ejecutó el ciclo completo sobre base de datos desechable: carga Excel (RF01/RF02), consolidado de arroz en dos mercados (RF03), creación de compra y rechazos de validación (RF04), recepción parcial con faltante y cierre que habilita alistamiento (RF05/RF06), copia de productos y bloqueos de completitud (RF07/RF08), creación de lista de chequeo y cierre al 100 % (RF09/RF10), más el control de estados que impide transiciones inválidas. Resultado: **14/14 satisfactorio**.
+La suite `PruebaLogica` ejecutó el ciclo completo sobre base de datos desechable: carga Excel (RF01/RF02), carga de CSV y TXT (G08), rechazo del mismo archivo con "Carga ya realizada" (G05/RNF02), consolidado de arroz en dos mercados (RF03), creación de compra y rechazos de validación (RF04), rechazo de compra sobre una plantilla vacía (RN-01), recepción parcial con faltante acumulado, segunda entrega que completa la compra y cierre que habilita alistamiento (RF05/RF06, RN-05/RN-06), copia de productos, tope contra lo recibido, bloqueo de productos sin recepción y faltante parcial cerrado (RF07/RF08, RN-07/RN-08), creación de lista de chequeo, bloqueo de faltante no aceptado, rechazo de cantidad 0, novedad obligatoria y cierre con faltante aceptado (RF09/RF10, RN-09/RN-10), protección del histórico y cero en alistamiento (RN-12/RN-11), más el control de estados que impide transiciones inválidas. L32 cubre cantidades descriptivas como “9 unidades”, “1 de 300 gr” y “400 gramos”, y la creación automática de productos faltantes con su unidad detectada. Resultado: **32/32 satisfactorio**.
 
 ### 5.4 Verificación de la interfaz
 
@@ -220,13 +221,13 @@ La suite `PruebaVistas` construye y muestra cada una de las trece ventanas sobre
 | RNF | Estrategia | Evidencia |
 |---|---|---|
 | RNF01 Usabilidad | Botones de gran tamaño (mín. 48 px de alto), confirmaciones para acciones destructivas, menús por módulo, mensajes en español | Ventanas verificadas 13/13 |
-| RNF02 Integridad | FK activas por conexión, tablas `STRICT`, disparador de cálculo, estados del ciclo con transición validada y `CHECK` en BD | PruebaEsquema 10/10 |
+| RNF02 Integridad | FK activas por conexión, tablas `STRICT`, disparador de cálculo acumulado, estados del ciclo con transición validada, `CHECK` en BD, FK `RESTRICT`/trigger de histórico, bloqueo de cero y hash SHA-256 único por carga | PruebaEsquema 20/20 · L30 y L31 |
 | RNF03 Desempeño | Consolidación en consulta SQL única con índice; la suite completa corre en menos de diez segundos | `ant pruebas` |
-| RNF04 Arquitectura POO | Cuatro paquetes, 10 interfaces DAO con implementación SQLite intercambiable, servicios sin dependencia de Swing | Estructura `agromedio.*` |
+| RNF04 Arquitectura POO | Cuatro paquetes, 12 interfaces DAO con implementación SQLite intercambiable, servicios sin dependencia de Swing | Estructura `agromedio.*` |
 
 ### 5.6 Paquete de entrega
 
-`AgromedioApp/` (código fuente, build y ejecutable), `docs/` (este informe, matriz de trazabilidad, plan de pruebas, casos de uso, manual, cronograma y acta, guiones SQL y capturas).
+`AgromedioApp/` (código fuente, build y ejecutable), `docs/` (este informe, matriz de trazabilidad, plan de pruebas, casos de uso, manual, cronograma y acta, diccionario de datos, EDT y gestión de cambios, guiones SQL y capturas). Resultado global de verificación: **65/65**.
 
 ---
 
@@ -245,7 +246,7 @@ La suite `PruebaVistas` construye y muestra cada una de las trece ventanas sobre
 1. Realizar la validación conjunta con los operadores en planta usando plantillas reales anonimizadas antes de la puesta en marcha, siguiendo el guion de la visita.
 2. Definir con administración la política de cambios de programación una vez iniciada la operación (quién autoriza y cómo se propaga a compras y alistamiento).
 3. Confirmar con proveedores y bodega la presentación exacta de cada producto para completar la tabla de factores de conversión.
-4. Para una segunda versión, migrar la persistencia a un servidor PostgreSQL conservando las interfaces DAO, e incorporar roles de usuario y bitácora de cambios.
+4. Para una segunda versión, evaluar PostgreSQL solo si el crecimiento o la concurrencia lo exigen, conservando las interfaces DAO, e incorporar autenticación, roles de usuario y bitácora de cambios; esta versión es mono-usuario por decisión de alcance.
 5. Establecer la copia de seguridad diaria del archivo de base de datos como parte de la rutina de cierre de jornada.
 6. Automatizar la ejecución de las suites de verificación en cada entrega de código para mantener la regresión bajo control.
 
@@ -275,3 +276,6 @@ SQLite Consortium. (s. f.). *SQLite documentation*. https://www.sqlite.org/docs.
 - **Anexo 4.** Cronograma por fases y acta de entrega/aceptación (`docs/06_cronograma_y_acta.md`).
 - **Anexo 5.** Guiones de base de datos: `docs/base_de_datos/schema.sql` y `docs/base_de_datos/seed.sql`.
 - **Anexo 6.** Capturas del sistema en ejecución (`docs/imagenes/`).
+- **Anexo 7.** Matriz de reglas de negocio, brechas y decisiones (`docs/07_matriz_trazabilidad_rn.md`).
+- **Anexo 8.** Diccionario de datos (`docs/08_diccionario_datos.md`).
+- **Anexo 9.** EDT, RACI, gestión de cambios y riesgos (`docs/09_edt_y_gestion_cambios.md`).

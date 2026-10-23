@@ -59,7 +59,12 @@ public class AlistamientoDAOSqlite implements AlistamientoDAO {
             "SELECT da.id_detalle_alistamiento, da.id_alistamiento, da.id_producto, da.cantidad_alistada, da.completado, "
           + "pr.nombre, um.abreviatura, "
           + "(SELECT dp.cantidad_solicitada FROM detalle_plantilla dp "
-          + " WHERE dp.id_plantilla = a.id_plantilla AND dp.id_producto = da.id_producto) AS solicitado "
+          + " WHERE dp.id_plantilla = a.id_plantilla AND dp.id_producto = da.id_producto) AS solicitado, "
+          + "(SELECT ROUND(COALESCE(SUM(dr.cantidad_recibida), 0) * pr.factor_conversion, 2) "
+          + " FROM compra c2 "
+          + " JOIN detalle_compra dc2 ON dc2.id_compra = c2.id_compra "
+          + " JOIN detalle_recepcion dr ON dr.id_detalle_compra = dc2.id_detalle_compra "
+          + " WHERE c2.id_plantilla = a.id_plantilla AND dc2.id_producto = da.id_producto) AS recibido "
           + "FROM detalle_alistamiento da "
           + "JOIN alistamiento a ON a.id_alistamiento = da.id_alistamiento "
           + "JOIN producto pr ON pr.id_producto = da.id_producto "
@@ -78,6 +83,7 @@ public class AlistamientoDAOSqlite implements AlistamientoDAO {
                     d.setNombreProducto(rs.getString(6));
                     d.setAbreviatura(rs.getString(7));
                     d.setCantidadSolicitada(rs.getDouble(8));
+                    d.setCantidadRecibida(rs.getDouble(9));
                     lista.add(d);
                 }
             }

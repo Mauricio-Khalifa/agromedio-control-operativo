@@ -124,9 +124,9 @@ INSERT INTO detalle_alistamiento (id_detalle_alistamiento, id_alistamiento, id_p
 INSERT INTO despacho (id_despacho, id_plantilla, fecha_despacho, estado, novedades) VALUES
  (1, 1, date('now','localtime','-1 day'), 'DESPACHADA', 'Novedad: se despacharon 70 L de leche de los 77 solicitados (faltante del proveedor).');
 
-INSERT INTO detalle_despacho (id_detalle_despacho, id_despacho, id_producto, cantidad_despachada, verificado) VALUES
- (1, 1, 1, 70, 1),
- (2, 1, 3, 150, 1),
- (3, 1, 5, 200, 1),
- (4, 1, 6, 24, 1),
- (5, 1, 9, 44, 1);
+INSERT INTO detalle_despacho (id_detalle_despacho, id_despacho, id_producto, cantidad_despachada, verificado, faltante_aceptado) VALUES
+ (1, 1, 1, 70, 1, 1),
+ (2, 1, 3, 150, 1, 0),
+ (3, 1, 5, 200, 1, 0),
+ (4, 1, 6, 24, 1, 0),
+ (5, 1, 9, 44, 1, 0);

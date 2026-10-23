@@ -1,39 +1,114 @@
 package agromedio.presentacion;
 
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComponent;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
+import javax.swing.JPanel;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
+import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Component;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.Insets;
+import java.sql.SQLException;
+import java.time.LocalDate;
+import java.util.Locale;
 
-/** Utilidades de interfaz: estilo de planta (RNF01) y mensajes uniformes. */
+/** Utilidades visuales comunes: botones, formularios, tablas y mensajes. */
 public final class UiUtil {
 
-    public static final Font FUENTE = new Font("Segoe UI", Font.PLAIN, 16);
-    public static final Font FUENTE_NEGRITA = new Font("Segoe UI", Font.BOLD, 16);
-    public static final Font FUENTE_TITULO = new Font("Segoe UI", Font.BOLD, 20);
-    public static final Font FUENTE_BOTON = new Font("Segoe UI", Font.BOLD, 16);
+    public static final Font FUENTE = Tema.BASE;
+    public static final Font FUENTE_NEGRITA = Tema.BASE_NEGRITA;
+    public static final Font FUENTE_TITULO = Tema.TITULO;
+    public static final Font FUENTE_BOTON = Tema.BASE_NEGRITA;
 
     private UiUtil() {}
 
-    /** Boton de gran tamano para operadores de planta (RNF01). */
     public static JButton boton(String texto) {
         JButton b = new JButton(texto);
         b.setFont(FUENTE_BOTON);
-        b.setPreferredSize(new Dimension(Math.max(170, texto.length() * 12), 48));
+        b.setFocusPainted(false);
+        b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        b.putClientProperty("JButton.buttonType", "roundRect");
+        b.setMargin(new Insets(7, 14, 7, 14));
+        b.setPreferredSize(new Dimension(Math.max(116, texto.length() * 9 + 44), 38));
+        return b;
+    }
+
+    public static JButton botonPrimario(String texto) {
+        JButton b = boton(texto);
+        b.setBackground(Tema.PRIMARIO);
+        b.setForeground(Color.WHITE);
+        b.setOpaque(true);
+        return b;
+    }
+
+    public static JButton botonSecundario(String texto) {
+        JButton b = boton(texto);
+        b.setBackground(Tema.SUPERFICIE);
+        b.setForeground(Tema.TEXTO);
+        return b;
+    }
+
+    public static JButton botonPeligro(String texto) {
+        JButton b = boton(texto);
+        b.setBackground(Tema.PELIGRO);
+        b.setForeground(Color.WHITE);
+        b.setOpaque(true);
         return b;
     }
 
     public static JTextField campo() {
         JTextField t = new JTextField();
         t.setFont(FUENTE);
+        t.setPreferredSize(new Dimension(180, 34));
         return t;
+    }
+
+    public static JLabel titulo(String texto) {
+        JLabel l = new JLabel(texto);
+        l.setFont(Tema.TITULO);
+        l.setForeground(Tema.TEXTO);
+        return l;
+    }
+
+    public static JLabel subtitulo(String texto) {
+        JLabel l = new JLabel(texto);
+        l.setFont(Tema.PEQUENA);
+        l.setForeground(Tema.TEXTO_SUAVE);
+        return l;
+    }
+
+    /** Encabezado de ventana con titulo y linea de contexto. */
+    public static JPanel encabezado(String titulo, String subtitulo) {
+        JPanel panel = new JPanel(new BorderLayout(0, 2));
+        panel.setOpaque(false);
+        panel.setBorder(BorderFactory.createEmptyBorder(4, 2, 8, 2));
+        panel.add(titulo(titulo), BorderLayout.NORTH);
+        if (subtitulo != null && !subtitulo.isBlank()) {
+            panel.add(subtitulo(subtitulo), BorderLayout.SOUTH);
+        }
+        return panel;
+    }
+
+    public static JPanel tarjeta(java.awt.LayoutManager layout) {
+        JPanel panel = new JPanel(layout);
+        panel.setBackground(Tema.SUPERFICIE);
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Tema.BORDE),
+                BorderFactory.createEmptyBorder(12, 12, 12, 12)));
+        return panel;
     }
 
     /** Modelo de tabla que solo permite editar las filas marcadas. */
@@ -47,13 +122,34 @@ public final class UiUtil {
     }
 
     public static void prepararTabla(JTable tabla) {
-        tabla.setFont(FUENTE);
-        tabla.setRowHeight(28);
+        tabla.setFont(Tema.TABLA);
+        tabla.setRowHeight(32);
+        tabla.setShowGrid(false);
+        tabla.setIntercellSpacing(new Dimension(0, 1));
         tabla.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        tabla.getTableHeader().setFont(FUENTE_NEGRITA);
+        tabla.setFillsViewportHeight(true);
+        tabla.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+        tabla.putClientProperty("terminateEditOnFocusLost", Boolean.TRUE);
+        tabla.setDefaultRenderer(Object.class, new RendererGeneral());
+        tabla.getTableHeader().setFont(Tema.TABLA_ENCABEZADO);
+        tabla.getTableHeader().setReorderingAllowed(false);
+        tabla.getTableHeader().setPreferredSize(new Dimension(0, 36));
+
         TableColumnModel cm = tabla.getColumnModel();
         for (int i = 0; i < cm.getColumnCount(); i++) {
-            cm.getColumn(i).setPreferredWidth(140);
+            TableColumn columna = cm.getColumn(i);
+            String nombre = tabla.getColumnName(i);
+            int ancho = i == 0 ? 210 : 120;
+            if (nombre != null && nombre.toLowerCase(Locale.ROOT).contains("observ")) {
+                ancho = 240;
+            }
+            columna.setPreferredWidth(ancho);
+            columna.setMinWidth(70);
+            if (nombre != null && nombre.toLowerCase(Locale.ROOT).contains("estado")) {
+                columna.setCellRenderer(new RendererEstado());
+            } else {
+                columna.setCellRenderer(new RendererGeneral());
+            }
         }
     }
 
@@ -66,7 +162,16 @@ public final class UiUtil {
     }
 
     public static void error(Component padre, Exception e) {
-        String msg = e.getMessage() == null ? e.toString() : e.getMessage();
+        String msg;
+        if (e instanceof SQLException) {
+            msg = "No se pudo completar la operacion en la base de datos.\n\nDetalle: " + e.getMessage();
+        } else if (e instanceof NumberFormatException) {
+            msg = "Ingrese un numero valido. Ejemplo: 12,5 o 12.5";
+        } else if (e instanceof NullPointerException) {
+            msg = "Faltan datos obligatorios para completar la operacion.";
+        } else {
+            msg = e.getMessage() == null ? e.toString() : e.getMessage();
+        }
         error(padre, msg);
     }
 
@@ -75,19 +180,81 @@ public final class UiUtil {
                 JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE) == JOptionPane.YES_OPTION;
     }
 
-    /** Aplica la fuente base a todos los componentes de un panel. */
+    /** Aplica solo la fuente base al contenedor; no aplasta la jerarquia de sus hijos. */
     public static void fuenteRaiz(JComponent raiz) {
-        aplicar(raiz);
+        raiz.setFont(FUENTE);
     }
 
-    private static void aplicar(JComponent c) {
-        c.setFont(FUENTE);
-        for (java.awt.Component hijo : c.getComponents()) {
-            if (hijo instanceof JComponent jc) {
-                aplicar(jc);
-            } else {
-                hijo.setFont(FUENTE);
+    private static final class RendererGeneral extends DefaultTableCellRenderer {
+        private final JCheckBox check = new JCheckBox();
+
+        RendererGeneral() {
+            setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 8));
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable tabla, Object valor, boolean seleccion,
+                                                       boolean foco, int fila, int columna) {
+            if (valor instanceof Boolean b) {
+                check.setSelected(b);
+                check.setOpaque(true);
+                check.setHorizontalAlignment(JCheckBox.CENTER);
+                check.setBackground(fondo(tabla, seleccion, fila));
+                check.setForeground(Tema.TEXTO);
+                return check;
             }
+
+            super.getTableCellRendererComponent(tabla, valor, seleccion, foco, fila, columna);
+            setFont(Tema.TABLA);
+            setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 8));
+            setBackground(fondo(tabla, seleccion, fila));
+            setForeground(seleccion ? tabla.getSelectionForeground() : Tema.TEXTO);
+            setHorizontalAlignment(valor instanceof Number ? RIGHT : LEFT);
+            if (valor instanceof Number n) {
+                setText(Formato.numero(n));
+            } else if (valor instanceof LocalDate fecha) {
+                setText(Formato.fecha(fecha));
+            } else if (valor instanceof String texto && texto.matches("\\d{4}-\\d{2}-\\d{2}")) {
+                setText(Formato.fecha(texto));
+            } else {
+                setText(valor == null ? "" : valor.toString());
+            }
+            return this;
+        }
+
+        private Color fondo(JTable tabla, boolean seleccion, int fila) {
+            if (seleccion) {
+                return tabla.getSelectionBackground();
+            }
+            return fila % 2 == 0 ? Tema.SUPERFICIE : Tema.SUPERFICIE_ALT;
+        }
+    }
+
+    private static final class RendererEstado extends DefaultTableCellRenderer {
+        @Override
+        public Component getTableCellRendererComponent(JTable tabla, Object valor, boolean seleccion,
+                                                       boolean foco, int fila, int columna) {
+            super.getTableCellRendererComponent(tabla, valor, seleccion, foco, fila, columna);
+            setText(Formato.estado(valor == null ? "" : valor.toString()));
+            setFont(Tema.TABLA.deriveFont(Font.BOLD));
+            setHorizontalAlignment(CENTER);
+            setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 8));
+            setBackground(seleccion ? tabla.getSelectionBackground()
+                    : (fila % 2 == 0 ? Tema.SUPERFICIE : Tema.SUPERFICIE_ALT));
+            setForeground(seleccion ? tabla.getSelectionForeground() : colorEstado(valor));
+            return this;
+        }
+
+        private Color colorEstado(Object valor) {
+            String estado = valor == null ? "" : valor.toString().toUpperCase(Locale.ROOT);
+            return switch (estado) {
+                case "CARGADA", "BORRADOR" -> Tema.TEXTO_SUAVE;
+                case "EN_COMPRA", "COMPRADA" -> Tema.ADVERTENCIA;
+                case "RECIBIDA", "ALISTADA" -> Tema.INFO;
+                case "DESPACHADA", "CERRADA", "CONFIRMADA" -> Tema.EXITO;
+                case "ANULADA" -> Tema.PELIGRO;
+                default -> Tema.TEXTO;
+            };
         }
     }
 }

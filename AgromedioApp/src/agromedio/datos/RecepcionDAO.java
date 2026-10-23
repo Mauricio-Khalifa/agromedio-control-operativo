@@ -10,4 +10,11 @@ public interface RecepcionDAO {
     int guardar(Recepcion recepcion);
     void agregarDetalle(DetalleRecepcion detalle);
     List<DetalleRecepcion> listarDetalle(int idRecepcion);
+
+    /**
+     * Estado acumulado de cada detalle de compra: cantidad comprada,
+     * cantidad recibida sumando todas las entregas y faltante pendiente.
+     * Una fila por detalle, ordenada por producto.
+     */
+    List<DetalleRecepcion> listarAcumuladoPorCompra(int idCompra);
 }

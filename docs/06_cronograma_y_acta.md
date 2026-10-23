@@ -1,7 +1,7 @@
 # Cronograma y Acta de Entrega
 
 **Proyecto:** Sistema de Control Operativo AGROMEDIO
-**Versión:** 1.0 – septiembre 2026
+**Versión:** 1.1 – octubre 2026
 
 ---
 
@@ -11,10 +11,11 @@
 |---|---|---|---|---|---|
 | F1 – Levantamiento | Preparación de visita, entrevistas por función, observación en planta, registro de hallazgos (ENT/DOC/OBS) | Guion de entrevista, notas de visita, flujo actual | 04/09/2026 | 11/09/2026 | ✅ Completada |
 | F2 – Análisis y diseño | RF01–RF10 y RNF01–RNF04, diagrama entidad-relación aprobado, máquina de estados del ciclo, casos de uso | Documento de requisitos, ER, matriz de trazabilidad | 08/09/2026 | 18/09/2026 | ✅ Completada |
-| F3 – Diseño de BD | 15 tablas, disparador de faltantes, 3 vistas, índices, semilla de demostración | `schema.sql`, `seed.sql` | 16/09/2026 | 23/09/2026 | ✅ Completada |
-| F4 – Construcción | Capas modelo/datos/lógica, módulos 0–4, reportes, interfaz Swing, carga Excel con POI | Aplicación funcional (`dist/AgromedioApp.jar`) | 18/09/2026 | 30/09/2026 | ✅ Completada |
-| F5 – Verificación | Suites de esquema, lógica y vistas; smoke visual; corrección de hallazgos | Plan de pruebas con resultados 37/37 | 28/09/2026 | 02/10/2026 | ✅ Completada |
+| F3 – Diseño de BD | 16 tablas, disparador de faltantes, 5 triggers de integridad, 3 vistas, índices, semilla de demostración | `schema.sql`, `seed.sql` | 16/09/2026 | 23/09/2026 | ✅ Completada |
+| F4 – Construcción | Capas modelo/datos/lógica, módulos 0–4, reportes, interfaz Swing, carga Excel/CSV/TXT | Aplicación funcional (`dist/AgromedioApp.jar`) | 18/09/2026 | 30/09/2026 | ✅ Completada |
+| F5 – Verificación | Suites de esquema, lógica y vistas; smoke visual; corrección de hallazgos | Plan de pruebas con resultados 65/65 | 28/09/2026 | 02/10/2026 | ✅ Completada |
 | F6 – Documentación y entrega | Informe técnico, manual de usuario, paquete estándar PSI, acta de aceptación | Carpeta `docs/` y paquete de entrega | 01/10/2026 | 04/10/2026 | ✅ Completada |
+| F7 – Cierre de brechas | G01–G10, decisiones D05–D07, diccionario de datos y EDT | Suite 65/65 y documentación alineada | 22/10/2026 | 22/10/2026 | ✅ Completada |
 
 **Cronograma visual (semanas de septiembre–octubre 2026)**
 
@@ -35,7 +36,7 @@ F6 Entrega         |              ####|
 |---|---|---|---|
 | 1 | Aplicación ejecutable + dependencias | `AgromedioApp/dist/AgromedioApp.jar`, `dist/lib/` | ✅ |
 | 2 | Lanzador de doble clic | `AgromedioApp/ejecutar.bat` | ✅ |
-| 3 | Código fuente completo (70 archivos Java) | `AgromedioApp/src/` | ✅ |
+| 3 | Código fuente completo (74 archivos Java) | `AgromedioApp/src/` | ✅ |
 | 4 | Guiones de base de datos | `docs/base_de_datos/schema.sql`, `seed.sql` | ✅ |
 | 5 | Informe técnico | `docs/01_informe_tecnico.md` | ✅ |
 | 6 | Matriz de trazabilidad RF/RNF | `docs/02_matriz_trazabilidad.md` | ✅ |
@@ -44,18 +45,20 @@ F6 Entrega         |              ####|
 | 9 | Manual de usuario | `docs/05_manual_usuario.md` | ✅ |
 | 10 | Cronograma y acta de entrega | `docs/06_cronograma_y_acta.md` | ✅ |
 | 11 | Capturas del sistema | `docs/imagenes/` | ✅ |
-| 12 | Resultados de verificación | `ant pruebas` (10/10 + 14/14), `ant pruebas-vistas` (13/13) | ✅ |
+| 12 | Diccionario de datos | `docs/08_diccionario_datos.md` | ✅ |
+| 13 | EDT y gestión de cambios | `docs/09_edt_y_gestion_cambios.md` | ✅ |
+| 14 | Resultados de verificación | `ant pruebas` (20/20 + 32/32), `ant pruebas-vistas` (13/13) | ✅ |
 
 ## 3. Resultados de verificación de la entrega
 
 | Verificación | Resultado |
 |---|---|
 | Compilación limpia (`ant clean jar`) | ✅ |
-| Suite de esquema | 10/10 ✅ |
-| Suite funcional RF01–RF10 | 14/14 ✅ |
+| Suite de esquema | 20/20 ✅ |
+| Suite funcional RF01-RF10 + RN-01 a RN-12 + RNF02 + G08 | 32/32 ✅ |
 | Suite de ventanas | 13/13 ✅ |
 | Ejecución de la aplicación (smoke visual) | ✅ |
-| **Total** | **37/37** |
+| **Total** | **65/65** |
 
 ---
 
@@ -70,24 +73,25 @@ F6 Entrega         |              ####|
 ### 1. Alcance entregado
 
 - Aplicación de escritorio Java/Swing empaquetada en `dist/AgromedioApp.jar` con lanzador `ejecutar.bat`.
-- Base de datos SQLite con 15 tablas, disparador de cálculo de faltantes, 3 vistas e integridad referencial.
-- Módulos: Carga Excel (RF01–RF02), Compras (RF03–RF04), Recepción (RF05–RF06), Alistamiento (RF07–RF08), Despacho (RF09–RF10).
+- Base de datos SQLite con 16 tablas, disparador de cálculo de faltantes, 5 triggers de integridad, 3 vistas e integridad referencial.
+- Módulos: Carga de archivos Excel/CSV/TXT (RF01–RF02), Compras (RF03–RF04), Recepción (RF05–RF06), Alistamiento (RF07–RF08), Despacho (RF09–RF10).
+- Operación mono-usuario sin autenticación en esta versión; los roles del proceso se documentan como actores funcionales.
 - Cumplimiento de RNF01–RNF04 según matriz de trazabilidad.
-- Informe técnico, matriz de trazabilidad, plan de pruebas, casos de uso, manual de usuario, cronograma y guiones SQL.
+- Informe técnico, matriz de trazabilidad, plan de pruebas, casos de uso, manual de usuario, diccionario de datos, EDT, cronograma y guiones SQL.
 
 ### 2. Criterios de aceptación
 
 | # | Criterio | Cumple (Sí/No/Observación) |
 |---|---|---|
 | A1 | La aplicación inicia desde `ejecutar.bat` sin asistencia técnica | |
-| A2 | Se carga una plantilla desde un archivo `.xlsx` real | |
+| A2 | Se carga una plantilla desde un archivo real (`.xlsx`, `.xls`, `.csv` o `.txt`) | |
 | A3 | El consolidado de compras refleja la suma correcta por producto | |
 | A4 | La recepción muestra el faltante por producto de forma explícita | |
 | A5 | El alistamiento exige completar todos los ítems para cerrar | |
 | A6 | El despacho no cierra con ítems sin verificar | |
 | A7 | Los reportes de faltantes y saldo muestran información real | |
 | A8 | Se entregan la documentación y los guiones de base de datos | |
-| A9 | Pruebas automatizadas en verde (37/37) | |
+| A9 | Pruebas automatizadas en verde (65/65) | |
 
 ### 3. Observaciones del cliente
 
@@ -108,6 +112,7 @@ _______________________________________________________________________
 | Santiago Colmenares Parra | Nombre: ____________________________ |
 | Califa Hernández Iván Mauricio | Cargo: ____________________________ |
 | Jorge Andrés Correa Morales | Firma: ____________________________ |
+| Jaider Martínez | |
 | | Fecha: ____________________________ |
 
 **Tutores / docentes evaluadores**

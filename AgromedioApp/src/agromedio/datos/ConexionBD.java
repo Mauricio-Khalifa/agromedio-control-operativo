@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
@@ -51,17 +52,22 @@ public final class ConexionBD {
         return c;
     }
 
-    /** Crea la BD con datos de demostracion solo si aun no existe. */
+    /** Crea la BD con datos de demostracion si no existe; si existe, aplica las migraciones G03/G04/G05/G07. */
     public static synchronized void inicializar() throws SQLException {
         Path p = Paths.get(rutaBD());
+        boolean existeConDatos = false;
         if (Files.exists(p)) {
             try {
-                if (Files.size(p) > 0) {
-                    return;
-                }
+                existeConDatos = Files.size(p) > 0;
             } catch (Exception ignore) {
-                // continua y recrea
+                // si no se puede leer el tamano, se intenta recrear
             }
+        }
+        if (existeConDatos) {
+            migrarEsquemaG03();
+            migrarEsquemaG04G07();
+            migrarEsquemaG05();
+            return;
         }
         Path padre = p.toAbsolutePath().getParent();
         if (padre != null) {
@@ -73,6 +79,108 @@ public final class ConexionBD {
         }
         ejecutarGuion("/sql/schema.sql");
         ejecutarGuion("/sql/seed.sql");
+    }
+
+    /**
+     * Migracion idempotente para bases creadas antes de G03: agrega
+     * detalle_despacho.faltante_aceptado y actualiza la vista de avance.
+     * Los despachos historicos parciales que ya tenian novedad se marcan
+     * como aceptados para conservar la coherencia del reporte.
+     */
+    private static void migrarEsquemaG03() throws SQLException {
+        boolean columnaNueva = false;
+        boolean vistaDesactualizada = false;
+        try (Connection c = obtener(); Statement st = c.createStatement()) {
+            boolean existeTabla = false;
+            try (ResultSet rs = st.executeQuery(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='detalle_despacho'")) {
+                existeTabla = rs.next();
+            }
+            if (!existeTabla) {
+                return;
+            }
+            columnaNueva = true;
+            try (ResultSet rs = st.executeQuery("PRAGMA table_info(detalle_despacho)")) {
+                while (rs.next()) {
+                    if ("faltante_aceptado".equalsIgnoreCase(rs.getString("name"))) {
+                        columnaNueva = false;
+                        break;
+                    }
+                }
+            }
+            if (columnaNueva) {
+                st.execute("ALTER TABLE detalle_despacho ADD COLUMN faltante_aceptado "
+                        + "INTEGER NOT NULL DEFAULT 0 CHECK (faltante_aceptado IN (0,1))");
+            }
+            try (ResultSet rs = st.executeQuery(
+                    "SELECT sql FROM sqlite_master WHERE type='view' AND name='v_avance_despacho'")) {
+                if (!rs.next() || rs.getString(1) == null
+                        || !rs.getString(1).toLowerCase().contains("con_novedad")) {
+                    vistaDesactualizada = true;
+                }
+            }
+        }
+        if (vistaDesactualizada) {
+            ejecutarGuion("/sql/migracion_g03.sql");
+        }
+        if (columnaNueva) {
+            try (Connection c = obtener(); Statement st = c.createStatement()) {
+                st.executeUpdate("UPDATE detalle_despacho SET faltante_aceptado = 1 "
+                        + "WHERE cantidad_despachada > 0 AND EXISTS ("
+                        + "SELECT 1 FROM despacho d "
+                        + "JOIN detalle_plantilla dp ON dp.id_plantilla = d.id_plantilla "
+                        + "WHERE d.id_despacho = detalle_despacho.id_despacho "
+                        + "AND dp.id_producto = detalle_despacho.id_producto "
+                        + "AND d.estado = 'DESPACHADA' "
+                        + "AND detalle_despacho.cantidad_despachada < dp.cantidad_solicitada "
+                        + "AND d.novedades IS NOT NULL AND TRIM(d.novedades) <> '')");
+            }
+        }
+    }
+
+    /**
+     * Migracion idempotente para bases anteriores a G04/G07. SQLite no permite
+     * alterar CHECK ni ON DELETE, por lo que se instalan triggers equivalentes.
+     */
+    private static void migrarEsquemaG04G07() throws SQLException {
+        ejecutarGuion("/sql/migracion_g04_g07.sql");
+    }
+
+    /**
+     * Migracion idempotente para bases anteriores a G05: crea carga_plantilla,
+     * agrega plantilla_operativa.id_carga y su indice.
+     */
+    private static void migrarEsquemaG05() throws SQLException {
+        boolean existePlantilla = false;
+        try (Connection c = obtener(); Statement st = c.createStatement();
+             ResultSet rs = st.executeQuery(
+                     "SELECT name FROM sqlite_master WHERE type='table' AND name='plantilla_operativa'")) {
+            existePlantilla = rs.next();
+        }
+        if (!existePlantilla) {
+            return;
+        }
+        ejecutarGuion("/sql/migracion_g05.sql");
+
+        boolean columnaNueva = false;
+        try (Connection c = obtener(); Statement st = c.createStatement()) {
+            try (ResultSet rs = st.executeQuery("PRAGMA table_info(plantilla_operativa)")) {
+                boolean existeColumna = false;
+                while (rs.next()) {
+                    if ("id_carga".equalsIgnoreCase(rs.getString("name"))) {
+                        existeColumna = true;
+                        break;
+                    }
+                }
+                columnaNueva = !existeColumna;
+            }
+            if (columnaNueva) {
+                st.execute("ALTER TABLE plantilla_operativa ADD COLUMN id_carga INTEGER "
+                        + "REFERENCES carga_plantilla(id_carga)");
+            }
+            st.execute("CREATE INDEX IF NOT EXISTS idx_plantilla_carga "
+                    + "ON plantilla_operativa (id_carga)");
+        }
     }
 
     /** Ejecuta un guion SQL multipaso ubicado en el classpath. */

@@ -10,13 +10,14 @@ import java.util.List;
 public class PlantillaDAOSqlite implements PlantillaDAO {
 
     private static final String SELECT_BASE =
-            "SELECT p.id_plantilla, p.id_cliente, p.nombre_mercado, p.fecha_programada, p.estado, p.fecha_carga, c.nombre_entidad "
+            "SELECT p.id_plantilla, p.id_cliente, p.nombre_mercado, p.fecha_programada, p.estado, p.fecha_carga, c.nombre_entidad, p.id_carga "
           + "FROM plantilla_operativa p JOIN cliente c ON c.id_cliente = p.id_cliente ";
 
     private static PlantillaOperativa mapear(ResultSet rs) throws SQLException {
         PlantillaOperativa p = new PlantillaOperativa(rs.getInt(1), rs.getInt(2), rs.getString(3),
                 rs.getString(4), rs.getString(5), rs.getString(6));
         p.setNombreCliente(rs.getString(7));
+        p.setIdCarga(rs.getInt(8));
         return p;
     }
 
@@ -67,8 +68,9 @@ public class PlantillaDAOSqlite implements PlantillaDAO {
 
     @Override
     public int guardar(PlantillaOperativa p) {
-        String sqlInsert = "INSERT INTO plantilla_operativa (id_cliente, nombre_mercado, fecha_programada, estado, fecha_carga) "
-                + "VALUES (?, ?, ?, ?, datetime('now','localtime'))";
+        String sqlInsert = "INSERT INTO plantilla_operativa "
+                + "(id_cliente, nombre_mercado, fecha_programada, estado, fecha_carga, id_carga) "
+                + "VALUES (?, ?, ?, ?, datetime('now','localtime'), ?)";
         String sqlUpdate = "UPDATE plantilla_operativa SET id_cliente = ?, nombre_mercado = ?, fecha_programada = ? WHERE id_plantilla = ?";
         try (Connection c = ConexionBD.obtener()) {
             if (p.getIdPlantilla() == 0) {
@@ -77,6 +79,11 @@ public class PlantillaDAOSqlite implements PlantillaDAO {
                     ps.setString(2, p.getNombreMercado());
                     ps.setString(3, p.getFechaProgramada());
                     ps.setString(4, p.getEstado() == null ? PlantillaOperativa.ESTADO_CARGADA : p.getEstado());
+                    if (p.getIdCarga() > 0) {
+                        ps.setInt(5, p.getIdCarga());
+                    } else {
+                        ps.setNull(5, Types.INTEGER);
+                    }
                     ps.executeUpdate();
                     try (ResultSet rs = ps.getGeneratedKeys()) {
                         if (rs.next()) {
@@ -112,6 +119,34 @@ public class PlantillaDAOSqlite implements PlantillaDAO {
     }
 
     @Override
+    public boolean tieneHistorico(int idPlantilla) {
+        String sql = "SELECT EXISTS (SELECT 1 FROM compra WHERE id_plantilla = ?) "
+                + "OR EXISTS (SELECT 1 FROM alistamiento WHERE id_plantilla = ?) "
+                + "OR EXISTS (SELECT 1 FROM despacho WHERE id_plantilla = ?)";
+        try (Connection c = ConexionBD.obtener(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, idPlantilla);
+            ps.setInt(2, idPlantilla);
+            ps.setInt(3, idPlantilla);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && rs.getInt(1) == 1;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error al consultar historico de la plantilla: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void eliminar(int idPlantilla) {
+        try (Connection c = ConexionBD.obtener();
+             PreparedStatement ps = c.prepareStatement("DELETE FROM plantilla_operativa WHERE id_plantilla = ?")) {
+            ps.setInt(1, idPlantilla);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Error al eliminar plantilla: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
     public List<DetallePlantilla> listarDetalle(int idPlantilla) {
         List<DetallePlantilla> lista = new ArrayList<>();
         String sql = "SELECT dp.id_detalle_plantilla, dp.id_plantilla, dp.id_producto, dp.cantidad_solicitada, "
@@ -134,6 +169,30 @@ public class PlantillaDAOSqlite implements PlantillaDAO {
             throw new RuntimeException("Error al listar detalle de plantilla: " + e.getMessage(), e);
         }
         return lista;
+    }
+
+    @Override
+    public DetallePlantilla obtenerDetalle(int idDetallePlantilla) {
+        String sql = "SELECT dp.id_detalle_plantilla, dp.id_plantilla, dp.id_producto, dp.cantidad_solicitada, "
+                + "pr.nombre, um.abreviatura "
+                + "FROM detalle_plantilla dp "
+                + "JOIN producto pr ON pr.id_producto = dp.id_producto "
+                + "JOIN unidad_medida um ON um.id_unidad = pr.id_unidad_despacho "
+                + "WHERE dp.id_detalle_plantilla = ?";
+        try (Connection c = ConexionBD.obtener(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, idDetallePlantilla);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) {
+                    return null;
+                }
+                DetallePlantilla d = new DetallePlantilla(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getDouble(4));
+                d.setNombreProducto(rs.getString(5));
+                d.setAbreviatura(rs.getString(6));
+                return d;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error al obtener detalle de plantilla: " + e.getMessage(), e);
+        }
     }
 
     @Override

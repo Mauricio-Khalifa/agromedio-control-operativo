@@ -9,12 +9,16 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JInternalFrame;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.time.LocalDate;
 
 /** Reportes operativos listos para imprimir (faltantes, saldos, consolidado, avance). */
@@ -29,20 +33,17 @@ public class FrmReportes extends JInternalFrame {
     public FrmReportes() {
         super("Reportes y consultas", true, true, true, true);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        setSize(960, 620);
+        setSize(1120, 700);
         setLayout(new BorderLayout(8, 8));
+        getContentPane().setBackground(Tema.FONDO);
 
-        JPanel norte = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 8));
-        JButton btnFaltantes = UiUtil.boton("Faltantes de recepcion");
-        JButton btnSaldo = UiUtil.boton("Saldo del mercado");
-        JButton btnConsolidado = UiUtil.boton("Consolidado de demanda");
-        JButton btnAvance = UiUtil.boton("Avance de despachos");
-        norte.add(btnFaltantes);
-        norte.add(cmbPlantilla);
-        norte.add(btnSaldo);
-        norte.add(txtFecha);
-        norte.add(btnConsolidado);
-        norte.add(btnAvance);
+        JPanel norte = new JPanel(new BorderLayout(8, 6));
+        norte.setOpaque(false);
+        norte.setBorder(BorderFactory.createEmptyBorder(8, 10, 2, 10));
+        norte.add(UiUtil.encabezado("Reportes y consultas",
+                "Genere una vista previa, revise los datos y luego imprima el reporte."),
+                BorderLayout.NORTH);
+        norte.add(crearControles(), BorderLayout.CENTER);
         add(norte, BorderLayout.NORTH);
 
         for (PlantillaOperativa p : plantillaDAO.listar()) {
@@ -51,27 +52,22 @@ public class FrmReportes extends JInternalFrame {
         txtFecha.setText(LocalDate.now().toString());
 
         area.setEditable(false);
-        area.setFont(new java.awt.Font("Consolas", java.awt.Font.PLAIN, 15));
+        area.setFont(Tema.MONO);
+        area.setBackground(Tema.SUPERFICIE);
+        area.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
         JScrollPane scroll = new JScrollPane(area);
-        scroll.setBorder(BorderFactory.createTitledBorder("Vista previa del reporte"));
+        scroll.setBorder(BorderFactory.createLineBorder(Tema.BORDE));
         add(scroll, BorderLayout.CENTER);
 
-        JButton btnImprimir = UiUtil.boton("Imprimir reporte");
-        JButton btnLimpiar = UiUtil.boton("Limpiar");
-        JPanel sur = new JPanel(new FlowLayout(FlowLayout.CENTER, 16, 10));
+        JButton btnImprimir = UiUtil.botonPrimario("Imprimir reporte");
+        JButton btnLimpiar = UiUtil.botonSecundario("Limpiar");
+        JPanel sur = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
+        sur.setOpaque(false);
+        sur.setBorder(BorderFactory.createEmptyBorder(0, 10, 6, 10));
         sur.add(btnImprimir);
         sur.add(btnLimpiar);
         add(sur, BorderLayout.SOUTH);
 
-        btnFaltantes.addActionListener(e -> mostrar(servicio.reporteFaltantes()));
-        btnSaldo.addActionListener(e -> {
-            PlantillaOperativa p = (PlantillaOperativa) cmbPlantilla.getSelectedItem();
-            if (p != null) {
-                mostrar(servicio.reporteSaldo(p.getIdPlantilla()));
-            }
-        });
-        btnConsolidado.addActionListener(e -> mostrar(servicio.reporteConsolidado(txtFecha.getText().trim())));
-        btnAvance.addActionListener(e -> mostrar(servicio.reporteAvance()));
         btnLimpiar.addActionListener(e -> area.setText(""));
         btnImprimir.addActionListener(e -> {
             try {
@@ -83,6 +79,64 @@ public class FrmReportes extends JInternalFrame {
 
         area.setText("Seleccione el reporte que desea generar.");
         UiUtil.fuenteRaiz(this);
+    }
+
+    private JPanel crearControles() {
+        JPanel tarjeta = new JPanel(new GridBagLayout());
+        tarjeta.setBackground(Tema.SUPERFICIE);
+        tarjeta.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Tema.BORDE),
+                BorderFactory.createEmptyBorder(8, 10, 8, 10)));
+
+        JButton btnFaltantes = UiUtil.botonSecundario("Ver faltantes");
+        JButton btnSaldo = UiUtil.botonSecundario("Ver saldo");
+        JButton btnConsolidado = UiUtil.botonSecundario("Ver consolidado");
+        JButton btnAvance = UiUtil.botonSecundario("Ver avance");
+
+        JPanel grupoFaltantes = grupo("Faltantes de recepción", btnFaltantes);
+        JPanel grupoSaldo = grupo("Saldo del mercado", cmbPlantilla, btnSaldo);
+        JPanel grupoConsolidado = grupo("Consolidado por fecha", txtFecha, btnConsolidado);
+        JPanel grupoAvance = grupo("Avance de despachos", btnAvance);
+
+        GridBagConstraints g = new GridBagConstraints();
+        g.insets = new Insets(4, 6, 4, 6);
+        g.anchor = GridBagConstraints.WEST;
+        g.fill = GridBagConstraints.HORIZONTAL;
+        g.weightx = 1;
+        g.gridx = 0; g.gridy = 0;
+        tarjeta.add(grupoFaltantes, g);
+        g.gridx = 1;
+        tarjeta.add(grupoSaldo, g);
+        g.gridx = 0; g.gridy = 1;
+        tarjeta.add(grupoConsolidado, g);
+        g.gridx = 1;
+        tarjeta.add(grupoAvance, g);
+
+        cmbPlantilla.setPreferredSize(new java.awt.Dimension(230, 34));
+        txtFecha.setPreferredSize(new java.awt.Dimension(130, 34));
+
+        btnFaltantes.addActionListener(e -> mostrar(servicio.reporteFaltantes()));
+        btnSaldo.addActionListener(e -> {
+            PlantillaOperativa p = (PlantillaOperativa) cmbPlantilla.getSelectedItem();
+            if (p == null) {
+                UiUtil.error(this, "Seleccione un mercado.");
+                return;
+            }
+            mostrar(servicio.reporteSaldo(p.getIdPlantilla()));
+        });
+        btnConsolidado.addActionListener(e -> mostrar(servicio.reporteConsolidado(txtFecha.getText().trim())));
+        btnAvance.addActionListener(e -> mostrar(servicio.reporteAvance()));
+        return tarjeta;
+    }
+
+    private JPanel grupo(String etiqueta, java.awt.Component... componentes) {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
+        panel.setOpaque(false);
+        panel.add(new JLabel(etiqueta));
+        for (java.awt.Component componente : componentes) {
+            panel.add(componente);
+        }
+        return panel;
     }
 
     private void mostrar(String texto) {

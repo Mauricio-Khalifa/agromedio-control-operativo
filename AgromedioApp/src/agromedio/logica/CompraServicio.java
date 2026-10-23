@@ -52,6 +52,10 @@ public class CompraServicio {
                 || PlantillaOperativa.ESTADO_LISTA.equals(plantilla.getEstado())) {
             throw new IllegalStateException("La plantilla ya avanzo en el ciclo y no admite nuevas compras.");
         }
+        if (plantillaDAO.listarDetalle(idPlantilla).isEmpty()) {
+            throw new IllegalStateException("La plantilla no tiene productos. "
+                    + "Agregue al menos un producto antes de registrar la compra.");
+        }
         for (DetalleCompra d : items) {
             if (d.getCantidadComprada() <= 0) {
                 throw new IllegalArgumentException("Todas las cantidades compradas deben ser mayores que cero.");

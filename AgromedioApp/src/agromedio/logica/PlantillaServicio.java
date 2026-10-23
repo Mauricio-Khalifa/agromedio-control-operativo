@@ -38,6 +38,13 @@ public class PlantillaServicio {
     }
 
     public void agregarProducto(int idPlantilla, int idProducto, double cantidad) {
+        PlantillaOperativa p = plantillaDAO.obtener(idPlantilla);
+        if (p == null) {
+            throw new IllegalArgumentException("La plantilla no existe.");
+        }
+        if (!editable(p)) {
+            throw new IllegalStateException("Solo se puede modificar una plantilla en estado CARGADA.");
+        }
         if (cantidad <= 0) {
             throw new IllegalArgumentException("La cantidad solicitada debe ser mayor que cero.");
         }
@@ -55,11 +62,43 @@ public class PlantillaServicio {
     }
 
     public void eliminarProducto(int idDetallePlantilla) {
+        agromedio.modelo.DetallePlantilla d = plantillaDAO.obtenerDetalle(idDetallePlantilla);
+        if (d == null) {
+            throw new IllegalArgumentException("El producto de la plantilla no existe.");
+        }
+        PlantillaOperativa p = plantillaDAO.obtener(d.getIdPlantilla());
+        if (!editable(p)) {
+            throw new IllegalStateException("Solo se puede modificar una plantilla en estado CARGADA.");
+        }
         plantillaDAO.eliminarDetalle(idDetallePlantilla);
     }
 
     public List<agromedio.modelo.DetallePlantilla> detalle(int idPlantilla) {
         return plantillaDAO.listarDetalle(idPlantilla);
+    }
+
+    public PlantillaOperativa obtener(int idPlantilla) {
+        return plantillaDAO.obtener(idPlantilla);
+    }
+
+    /**
+     * RN-12: una plantilla con compras, recepciones, alistamientos o despachos
+     * no se elimina. Solo se permite borrar una plantilla CARGADA sin historico,
+     * junto con su detalle editable.
+     */
+    public void eliminar(int idPlantilla) {
+        PlantillaOperativa p = plantillaDAO.obtener(idPlantilla);
+        if (p == null) {
+            throw new IllegalArgumentException("La plantilla no existe.");
+        }
+        if (plantillaDAO.tieneHistorico(idPlantilla)) {
+            throw new IllegalStateException("No se puede eliminar la plantilla "
+                    + p.getNombreMercado() + ": tiene compras, recepciones, alistamientos o despachos.");
+        }
+        if (!editable(p)) {
+            throw new IllegalStateException("Solo se puede eliminar una plantilla en estado CARGADA.");
+        }
+        plantillaDAO.eliminar(idPlantilla);
     }
 
     /** Solo se puede editar la plantilla mientras no haya iniciado la compra. */

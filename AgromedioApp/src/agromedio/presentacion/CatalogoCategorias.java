@@ -13,11 +13,11 @@ public class CatalogoCategorias implements AdaptadorCatalogo {
     private List<Categoria> cache = new ArrayList<>();
 
     @Override
-    public String titulo() { return "Categorias de producto"; }
+    public String titulo() { return "Categorías de producto"; }
 
     @Override
     public String[] columnasTabla() {
-        return new String[]{"ID", "Nombre"};
+        return new String[]{"Nombre"};
     }
 
     @Override
@@ -25,7 +25,7 @@ public class CatalogoCategorias implements AdaptadorCatalogo {
         cache = dao.listar();
         List<Object[]> filas = new ArrayList<>();
         for (Categoria c : cache) {
-            filas.add(new Object[]{c.getIdCategoria(), c.getNombre()});
+            filas.add(new Object[]{c.getNombre()});
         }
         return filas;
     }
@@ -37,7 +37,7 @@ public class CatalogoCategorias implements AdaptadorCatalogo {
 
     @Override
     public String[] etiquetasCampos() {
-        return new String[]{"Nombre de la categoria"};
+        return new String[]{"Nombre de la categoría"};
     }
 
     @Override
@@ -49,7 +49,7 @@ public class CatalogoCategorias implements AdaptadorCatalogo {
     public void guardar(int id, String[] campos) throws Exception {
         Categoria c = new Categoria(id, campos[0]);
         if (c.getNombre() == null || c.getNombre().trim().isEmpty()) {
-            throw new IllegalArgumentException("El nombre de la categoria es obligatorio.");
+            throw new IllegalArgumentException("El nombre de la categoría es obligatorio.");
         }
         dao.guardar(c);
     }

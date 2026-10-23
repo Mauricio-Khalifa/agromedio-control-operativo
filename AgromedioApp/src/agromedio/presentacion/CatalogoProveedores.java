@@ -17,7 +17,7 @@ public class CatalogoProveedores implements AdaptadorCatalogo {
 
     @Override
     public String[] columnasTabla() {
-        return new String[]{"ID", "Proveedor", "Contacto", "Telefono"};
+        return new String[]{"Proveedor", "Contacto", "Teléfono"};
     }
 
     @Override
@@ -25,7 +25,7 @@ public class CatalogoProveedores implements AdaptadorCatalogo {
         cache = dao.listar();
         List<Object[]> filas = new ArrayList<>();
         for (Proveedor p : cache) {
-            filas.add(new Object[]{p.getIdProveedor(), p.getNombre(), p.getContacto(), p.getTelefono()});
+            filas.add(new Object[]{p.getNombre(), p.getContacto(), p.getTelefono()});
         }
         return filas;
     }
@@ -37,7 +37,7 @@ public class CatalogoProveedores implements AdaptadorCatalogo {
 
     @Override
     public String[] etiquetasCampos() {
-        return new String[]{"Nombre del proveedor", "Contacto", "Telefono"};
+        return new String[]{"Nombre del proveedor", "Contacto", "Teléfono"};
     }
 
     @Override

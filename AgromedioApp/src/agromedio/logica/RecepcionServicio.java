@@ -14,7 +14,9 @@ import agromedio.modelo.Recepcion;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /** Modulo 2 - Recepcion: registro de entradas (RF05) y calculo de faltantes (RF06). */
 public class RecepcionServicio {
@@ -33,10 +35,18 @@ public class RecepcionServicio {
         this.plantillaDAO = plantillaDAO;
     }
 
+    private static final double EPS = 0.0001;
+
     /**
-     * RF05 - RF06: registra las cantidades fisicas recibidas de cada detalle de la
-     * compra. La base de datos calcula el faltante con el trigger
-     * trg_detalle_recepcion_faltante; aqui se devuelven las diferencias detectadas.
+     * RF05 - RF06 / RN-05 - RN-06: registra una entrega parcial o total de la
+     * compra. Se pueden hacer varias entregas mientras la compra no este
+     * cerrada. Las cantidades se acumulan por detalle de compra y el trigger
+     * trg_detalle_recepcion_faltante calcula el faltante pendiente.
+     *
+     * D02: las lineas con cantidad 0 no se persisten; si todas son 0 se
+     * rechaza la entrega.
+     *
+     * @return faltantes pendientes despues de la entrega (una fila por producto)
      */
     public List<DetalleRecepcion> registrarRecepcion(int idCompra, String fecha, String observaciones,
                                                      List<Double> cantidadesRecibidas) {
@@ -52,26 +62,49 @@ public class RecepcionServicio {
             throw new IllegalArgumentException("Debe indicar la cantidad recibida de cada producto.");
         }
 
+        Map<Integer, DetalleRecepcion> acumulados = new HashMap<>();
+        for (DetalleRecepcion d : recepcionDAO.listarAcumuladoPorCompra(idCompra)) {
+            acumulados.put(d.getIdDetalleCompra(), d);
+        }
+
+        int lineasConCantidad = 0;
+        for (int i = 0; i < detalles.size(); i++) {
+            DetalleCompra dc = detalles.get(i);
+            double recibida = cantidadesRecibidas.get(i) == null ? 0 : cantidadesRecibidas.get(i);
+            if (recibida < 0) {
+                throw new IllegalArgumentException("La cantidad recibida no puede ser negativa.");
+            }
+            DetalleRecepcion acumulado = acumulados.get(dc.getIdDetalleCompra());
+            double pendiente = acumulado == null ? dc.getCantidadComprada() : acumulado.getCantidadFaltante();
+            if (recibida > pendiente + EPS) {
+                throw new IllegalArgumentException("La cantidad recibida de " + dc.getNombreProducto()
+                        + " supera el pendiente (" + String.format("%.2f", pendiente) + " "
+                        + dc.getAbreviatura() + ").");
+            }
+            if (recibida > 0) {
+                lineasConCantidad++;
+            }
+        }
+        if (lineasConCantidad == 0) {
+            throw new IllegalArgumentException("Registre al menos una cantidad mayor que cero.");
+        }
+
         Recepcion recepcion = new Recepcion();
         recepcion.setIdCompra(idCompra);
         recepcion.setFechaRecepcion(fecha == null || fecha.isEmpty() ? LocalDate.now().toString() : fecha);
         recepcion.setObservaciones(observaciones);
         recepcionDAO.guardar(recepcion);
 
-        List<DetalleRecepcion> faltantes = new ArrayList<>();
         for (int i = 0; i < detalles.size(); i++) {
             double recibida = cantidadesRecibidas.get(i) == null ? 0 : cantidadesRecibidas.get(i);
-            if (recibida < 0) {
-                throw new IllegalArgumentException("La cantidad recibida no puede ser negativa.");
+            if (recibida <= 0) {
+                continue;   // D02: el cero no se persiste
             }
             DetalleRecepcion dr = new DetalleRecepcion();
             dr.setIdRecepcion(recepcion.getIdRecepcion());
             dr.setIdDetalleCompra(detalles.get(i).getIdDetalleCompra());
             dr.setCantidadRecibida(recibida);
             recepcionDAO.agregarDetalle(dr);
-            if (dr.getCantidadFaltante() > 0) {
-                faltantes.add(dr);
-            }
         }
 
         PlantillaOperativa plantilla = plantillaDAO.obtener(compra.getIdPlantilla());
@@ -80,7 +113,23 @@ public class RecepcionServicio {
                 || PlantillaOperativa.ESTADO_RECIBIENDO.equals(plantilla.getEstado()))) {
             plantillaDAO.actualizarEstado(plantilla.getIdPlantilla(), PlantillaOperativa.ESTADO_RECIBIENDO);
         }
-        return faltantes;
+        return faltantesPendientes(idCompra);
+    }
+
+    /** Estado acumulado de todos los detalles de la compra (recibido y pendiente). */
+    public List<DetalleRecepcion> estadoRecepcion(int idCompra) {
+        return recepcionDAO.listarAcumuladoPorCompra(idCompra);
+    }
+
+    /** Faltantes que aun no se han recibido, una fila por producto. */
+    public List<DetalleRecepcion> faltantesPendientes(int idCompra) {
+        List<DetalleRecepcion> pendientes = new ArrayList<>();
+        for (DetalleRecepcion d : estadoRecepcion(idCompra)) {
+            if (d.getCantidadFaltante() > 0) {
+                pendientes.add(d);
+            }
+        }
+        return pendientes;
     }
 
     /** Cierra la recepcion de la compra y habilita el alistamiento (produccion). */

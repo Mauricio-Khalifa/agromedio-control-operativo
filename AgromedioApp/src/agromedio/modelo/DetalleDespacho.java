@@ -6,21 +6,29 @@ public class DetalleDespacho {
     private int idProducto;
     private double cantidadDespachada;
     private boolean verificado;
+    private boolean faltanteAceptado;
 
     // Campos de presentacion
     private String nombreProducto;
     private String abreviatura;
     private double cantidadSolicitada;
+    private double cantidadAlistada;
 
     public DetalleDespacho() {}
 
     public DetalleDespacho(int idDetalleDespacho, int idDespacho, int idProducto,
                            double cantidadDespachada, boolean verificado) {
+        this(idDetalleDespacho, idDespacho, idProducto, cantidadDespachada, verificado, false);
+    }
+
+    public DetalleDespacho(int idDetalleDespacho, int idDespacho, int idProducto,
+                           double cantidadDespachada, boolean verificado, boolean faltanteAceptado) {
         this.idDetalleDespacho = idDetalleDespacho;
         this.idDespacho = idDespacho;
         this.idProducto = idProducto;
         this.cantidadDespachada = cantidadDespachada;
         this.verificado = verificado;
+        this.faltanteAceptado = faltanteAceptado;
     }
 
     public int getIdDetalleDespacho() { return idDetalleDespacho; }
@@ -33,10 +41,14 @@ public class DetalleDespacho {
     public void setCantidadDespachada(double cantidadDespacho) { this.cantidadDespachada = cantidadDespacho; }
     public boolean isVerificado() { return verificado; }
     public void setVerificado(boolean verificado) { this.verificado = verificado; }
+    public boolean isFaltanteAceptado() { return faltanteAceptado; }
+    public void setFaltanteAceptado(boolean faltanteAceptado) { this.faltanteAceptado = faltanteAceptado; }
     public String getNombreProducto() { return nombreProducto; }
     public void setNombreProducto(String nombreProducto) { this.nombreProducto = nombreProducto; }
     public String getAbreviatura() { return abreviatura; }
     public void setAbreviatura(String abreviatura) { this.abreviatura = abreviatura; }
     public double getCantidadSolicitada() { return cantidadSolicitada; }
     public void setCantidadSolicitada(double cantidadSolicitada) { this.cantidadSolicitada = cantidadSolicitada; }
+    public double getCantidadAlistada() { return cantidadAlistada; }
+    public void setCantidadAlistada(double cantidadAlistada) { this.cantidadAlistada = cantidadAlistada; }
 }

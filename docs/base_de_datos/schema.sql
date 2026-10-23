@@ -24,6 +24,7 @@ DROP TABLE IF EXISTS detalle_alistamiento;
 DROP TABLE IF EXISTS alistamiento;
 DROP TABLE IF EXISTS detalle_plantilla;
 DROP TABLE IF EXISTS plantilla_operativa;
+DROP TABLE IF EXISTS carga_plantilla;
 DROP TABLE IF EXISTS producto;
 DROP TABLE IF EXISTS proveedor;
 DROP TABLE IF EXISTS unidad_medida;
@@ -71,6 +72,19 @@ CREATE TABLE producto (
 ) STRICT;
 
 -- ---------------------------------------------------------------------
+-- CONTROL DE CARGAS (G05 / RNF02)
+-- ---------------------------------------------------------------------
+CREATE TABLE carga_plantilla (
+    id_carga                INTEGER PRIMARY KEY AUTOINCREMENT,
+    fecha_carga             TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    nombre_archivo          TEXT NOT NULL,
+    hash_archivo            TEXT NOT NULL UNIQUE,
+    usuario                 TEXT,
+    plantillas_creadas      INTEGER NOT NULL DEFAULT 0 CHECK (plantillas_creadas >= 0),
+    productos_registrados   INTEGER NOT NULL DEFAULT 0 CHECK (productos_registrados >= 0)
+) STRICT;
+
+-- ---------------------------------------------------------------------
 -- CICLO OPERATIVO: PLANTILLA (carga administrativa) -> DETALLE
 -- ---------------------------------------------------------------------
 CREATE TABLE plantilla_operativa (
@@ -81,7 +95,9 @@ CREATE TABLE plantilla_operativa (
     estado              TEXT NOT NULL DEFAULT 'CARGADA'
                         CHECK (estado IN ('CARGADA','EN_COMPRA','RECIBIENDO','ALISTANDO','LISTA','DESPACHADA')),
     fecha_carga         TEXT NOT NULL DEFAULT (datetime('now','localtime')),
-    FOREIGN KEY (id_cliente) REFERENCES cliente (id_cliente)
+    id_carga            INTEGER,
+    FOREIGN KEY (id_cliente) REFERENCES cliente (id_cliente),
+    FOREIGN KEY (id_carga)   REFERENCES carga_plantilla (id_carga) ON DELETE RESTRICT
 ) STRICT;
 
 CREATE TABLE detalle_plantilla (
@@ -102,7 +118,7 @@ CREATE TABLE alistamiento (
     fecha_alistamiento  TEXT NOT NULL,
     estado              TEXT NOT NULL DEFAULT 'EN_PROCESO'
                         CHECK (estado IN ('EN_PROCESO','COMPLETO')),
-    FOREIGN KEY (id_plantilla) REFERENCES plantilla_operativa (id_plantilla) ON DELETE CASCADE
+    FOREIGN KEY (id_plantilla) REFERENCES plantilla_operativa (id_plantilla) ON DELETE RESTRICT
 ) STRICT;
 
 CREATE TABLE detalle_alistamiento (
@@ -111,6 +127,7 @@ CREATE TABLE detalle_alistamiento (
     id_producto             INTEGER NOT NULL,
     cantidad_alistada       REAL NOT NULL CHECK (cantidad_alistada >= 0),
     completado              INTEGER NOT NULL DEFAULT 0 CHECK (completado IN (0,1)),
+    CHECK (completado = 0 OR cantidad_alistada > 0),
     FOREIGN KEY (id_alistamiento) REFERENCES alistamiento (id_alistamiento) ON DELETE CASCADE,
     FOREIGN KEY (id_producto)     REFERENCES producto (id_producto)
 ) STRICT;
@@ -124,7 +141,7 @@ CREATE TABLE compra (
     fecha_compra    TEXT NOT NULL,
     estado          TEXT NOT NULL DEFAULT 'REGISTRADA'
                     CHECK (estado IN ('REGISTRADA','RECIBIDA','ANULADA')),
-    FOREIGN KEY (id_plantilla) REFERENCES plantilla_operativa (id_plantilla) ON DELETE CASCADE
+    FOREIGN KEY (id_plantilla) REFERENCES plantilla_operativa (id_plantilla) ON DELETE RESTRICT
 ) STRICT;
 
 CREATE TABLE detalle_compra (
@@ -153,13 +170,15 @@ CREATE TABLE detalle_recepcion (
     id_detalle_recepcion    INTEGER PRIMARY KEY AUTOINCREMENT,
     id_recepcion            INTEGER NOT NULL,
     id_detalle_compra       INTEGER NOT NULL,
-    cantidad_recibida       REAL NOT NULL CHECK (cantidad_recibida >= 0),
+    cantidad_recibida       REAL NOT NULL CHECK (cantidad_recibida > 0),
     cantidad_faltante       REAL NOT NULL DEFAULT 0 CHECK (cantidad_faltante >= 0),
     FOREIGN KEY (id_recepcion)      REFERENCES recepcion (id_recepcion) ON DELETE CASCADE,
     FOREIGN KEY (id_detalle_compra) REFERENCES detalle_compra (id_detalle_compra)
 ) STRICT;
 
--- RF06: el faltante lo calcula y garantiza la base de datos
+-- RF06 / RN-06: el faltante se calcula sobre lo recibido ACUMULADO por detalle
+-- de compra, no sobre una entrega aislada. Se actualizan todas las filas del
+-- mismo detalle para que la columna refleje el pendiente vigente.
 CREATE TRIGGER trg_detalle_recepcion_faltante
 AFTER INSERT ON detalle_recepcion
 FOR EACH ROW
@@ -169,8 +188,10 @@ BEGIN
             (SELECT dc.cantidad_comprada
                FROM detalle_compra dc
               WHERE dc.id_detalle_compra = NEW.id_detalle_compra)
-            - NEW.cantidad_recibida, 2))
-    WHERE id_detalle_recepcion = NEW.id_detalle_recepcion;
+            - (SELECT COALESCE(SUM(dr.cantidad_recibida), 0)
+                 FROM detalle_recepcion dr
+                WHERE dr.id_detalle_compra = NEW.id_detalle_compra), 2))
+    WHERE id_detalle_compra = NEW.id_detalle_compra;
 END;
 
 -- ---------------------------------------------------------------------
@@ -183,7 +204,7 @@ CREATE TABLE despacho (
     estado          TEXT NOT NULL DEFAULT 'EN_VERIFICACION'
                     CHECK (estado IN ('EN_VERIFICACION','DESPACHADA')),
     novedades       TEXT,
-    FOREIGN KEY (id_plantilla) REFERENCES plantilla_operativa (id_plantilla) ON DELETE CASCADE
+    FOREIGN KEY (id_plantilla) REFERENCES plantilla_operativa (id_plantilla) ON DELETE RESTRICT
 ) STRICT;
 
 CREATE TABLE detalle_despacho (
@@ -192,15 +213,65 @@ CREATE TABLE detalle_despacho (
     id_producto             INTEGER NOT NULL,
     cantidad_despachada     REAL NOT NULL CHECK (cantidad_despachada >= 0),
     verificado              INTEGER NOT NULL DEFAULT 0 CHECK (verificado IN (0,1)),
+    faltante_aceptado       INTEGER NOT NULL DEFAULT 0 CHECK (faltante_aceptado IN (0,1)),
+    CHECK (verificado = 0 OR cantidad_despachada > 0),
     FOREIGN KEY (id_despacho) REFERENCES despacho (id_despacho) ON DELETE CASCADE,
     FOREIGN KEY (id_producto) REFERENCES producto (id_producto)
 ) STRICT;
+
+-- RN-12: una plantilla con historico no se puede eliminar. Ademas de las FK
+-- RESTRICT, el trigger protege bases migradas donde SQLite no permite alterar
+-- la clausula ON DELETE de una FK existente.
+CREATE TRIGGER trg_plantilla_historico
+BEFORE DELETE ON plantilla_operativa
+FOR EACH ROW
+WHEN EXISTS (SELECT 1 FROM compra WHERE id_plantilla = OLD.id_plantilla)
+  OR EXISTS (SELECT 1 FROM alistamiento WHERE id_plantilla = OLD.id_plantilla)
+  OR EXISTS (SELECT 1 FROM despacho WHERE id_plantilla = OLD.id_plantilla)
+BEGIN
+    SELECT RAISE(ABORT, 'RN-12: no se puede eliminar una plantilla con historico');
+END;
+
+-- RN-11 / D02: el cero solo vale como pendiente; no se puede completar ni
+-- verificar una cantidad en cero.
+CREATE TRIGGER trg_alistamiento_cantidad_ins
+BEFORE INSERT ON detalle_alistamiento
+FOR EACH ROW
+WHEN NEW.completado = 1 AND NEW.cantidad_alistada <= 0
+BEGIN
+    SELECT RAISE(ABORT, 'RN-11: un producto completado debe tener cantidad mayor que cero');
+END;
+
+CREATE TRIGGER trg_alistamiento_cantidad_upd
+BEFORE UPDATE OF completado, cantidad_alistada ON detalle_alistamiento
+FOR EACH ROW
+WHEN NEW.completado = 1 AND NEW.cantidad_alistada <= 0
+BEGIN
+    SELECT RAISE(ABORT, 'RN-11: un producto completado debe tener cantidad mayor que cero');
+END;
+
+CREATE TRIGGER trg_despacho_cantidad_ins
+BEFORE INSERT ON detalle_despacho
+FOR EACH ROW
+WHEN NEW.verificado = 1 AND NEW.cantidad_despachada <= 0
+BEGIN
+    SELECT RAISE(ABORT, 'RN-11: un producto verificado debe tener cantidad mayor que cero');
+END;
+
+CREATE TRIGGER trg_despacho_cantidad_upd
+BEFORE UPDATE OF verificado, cantidad_despachada ON detalle_despacho
+FOR EACH ROW
+WHEN NEW.verificado = 1 AND NEW.cantidad_despachada <= 0
+BEGIN
+    SELECT RAISE(ABORT, 'RN-11: un producto verificado debe tener cantidad mayor que cero');
+END;
 
 -- ---------------------------------------------------------------------
 -- INDICES (desempeno - RNF03)
 -- ---------------------------------------------------------------------
 CREATE INDEX idx_detalle_plantilla_planta ON detalle_plantilla (id_plantilla);
 CREATE INDEX idx_detalle_plantilla_prod   ON detalle_plantilla (id_producto);
+CREATE INDEX idx_plantilla_carga          ON plantilla_operativa (id_carga);
 CREATE INDEX idx_compra_plantilla         ON compra (id_plantilla);
 CREATE INDEX idx_det_compra_compra        ON detalle_compra (id_compra);
 CREATE INDEX idx_recepcion_compra         ON recepcion (id_compra);
@@ -266,11 +337,13 @@ LEFT JOIN (
     GROUP BY de.id_plantilla, dd.id_producto
 ) d ON d.id_plantilla = pl.id_plantilla AND d.id_producto = det.id_producto;
 
--- Faltantes de recepcion (RF06) en unidad de compra
+-- Faltantes acumulados de recepcion (RF06 / RN-06) en unidad de compra.
+-- Una sola fila por detalle de compra: no duplica el faltante cuando hay
+-- varias entregas parciales.
 CREATE VIEW v_faltantes_recepcion AS
 SELECT
-    r.id_recepcion,
-    r.fecha_recepcion,
+    MAX(dr.id_recepcion)                AS id_recepcion,
+    MAX(r.fecha_recepcion)              AS fecha_recepcion,
     c.id_compra,
     c.id_plantilla,
     pl.nombre_mercado,
@@ -279,17 +352,20 @@ SELECT
     pv.nombre                           AS proveedor,
     umc.abreviatura                     AS unidad_compra,
     dc.cantidad_comprada,
-    dr.cantidad_recibida,
-    dr.cantidad_faltante
-FROM detalle_recepcion dr
-JOIN recepcion r       ON r.id_recepcion = dr.id_recepcion
-JOIN compra c          ON c.id_compra = r.id_compra
+    ROUND(COALESCE(SUM(dr.cantidad_recibida), 0), 2) AS cantidad_recibida,
+    ROUND(MAX(0, dc.cantidad_comprada - COALESCE(SUM(dr.cantidad_recibida), 0)), 2) AS cantidad_faltante
+FROM detalle_compra dc
+JOIN compra c          ON c.id_compra = dc.id_compra
 JOIN plantilla_operativa pl ON pl.id_plantilla = c.id_plantilla
-JOIN detalle_compra dc ON dc.id_detalle_compra = dr.id_detalle_compra
 JOIN producto pr       ON pr.id_producto = dc.id_producto
 JOIN proveedor pv      ON pv.id_proveedor = dc.id_proveedor
 JOIN unidad_medida umc ON umc.id_unidad = pr.id_unidad_compra
-WHERE dr.cantidad_faltante > 0;
+LEFT JOIN detalle_recepcion dr ON dr.id_detalle_compra = dc.id_detalle_compra
+LEFT JOIN recepcion r           ON r.id_recepcion = dr.id_recepcion
+WHERE EXISTS (SELECT 1 FROM recepcion r2 WHERE r2.id_compra = c.id_compra)
+GROUP BY dc.id_detalle_compra, c.id_compra, c.id_plantilla, pl.nombre_mercado,
+         pr.nombre, pv.nombre, umc.abreviatura, dc.cantidad_comprada
+HAVING COALESCE(SUM(dr.cantidad_recibida), 0) < dc.cantidad_comprada;
 
 -- Avance del despacho por mercado (RF10)
 CREATE VIEW v_avance_despacho AS
@@ -304,7 +380,9 @@ SELECT
     CASE WHEN COUNT(dd.id_detalle_despacho) > 0
          THEN ROUND(100.0 * SUM(CASE WHEN dd.verificado = 1 THEN 1 ELSE 0 END)
                          / COUNT(dd.id_detalle_despacho), 1)
-         ELSE 0 END                                                      AS porcentaje
+         ELSE 0 END                                                      AS porcentaje,
+    CASE WHEN COALESCE(SUM(CASE WHEN dd.faltante_aceptado = 1 THEN 1 ELSE 0 END), 0) > 0
+         THEN 1 ELSE 0 END                                              AS con_novedad
 FROM despacho de
 JOIN plantilla_operativa pl ON pl.id_plantilla = de.id_plantilla
 LEFT JOIN detalle_despacho dd ON dd.id_despacho = de.id_despacho

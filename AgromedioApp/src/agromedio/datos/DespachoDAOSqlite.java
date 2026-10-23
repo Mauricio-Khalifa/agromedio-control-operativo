@@ -65,9 +65,11 @@ public class DespachoDAOSqlite implements DespachoDAO {
 
     private static final String DETALLE_SQL =
             "SELECT dd.id_detalle_despacho, dd.id_despacho, dd.id_producto, dd.cantidad_despachada, dd.verificado, "
-          + "pr.nombre, um.abreviatura, "
+          + "dd.faltante_aceptado, pr.nombre, um.abreviatura, "
           + "(SELECT dp.cantidad_solicitada FROM detalle_plantilla dp "
-          + " WHERE dp.id_plantilla = d.id_plantilla AND dp.id_producto = dd.id_producto) AS solicitado "
+          + " WHERE dp.id_plantilla = d.id_plantilla AND dp.id_producto = dd.id_producto) AS solicitado, "
+          + "(SELECT vs.alistado FROM v_saldo_plantilla vs "
+          + " WHERE vs.id_plantilla = d.id_plantilla AND vs.id_producto = dd.id_producto) AS alistado "
           + "FROM detalle_despacho dd "
           + "JOIN despacho d ON d.id_despacho = dd.id_despacho "
           + "JOIN producto pr ON pr.id_producto = dd.id_producto "
@@ -82,10 +84,11 @@ public class DespachoDAOSqlite implements DespachoDAO {
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     DetalleDespacho d = new DetalleDespacho(rs.getInt(1), rs.getInt(2), rs.getInt(3),
-                            rs.getDouble(4), rs.getInt(5) == 1);
-                    d.setNombreProducto(rs.getString(6));
-                    d.setAbreviatura(rs.getString(7));
-                    d.setCantidadSolicitada(rs.getDouble(8));
+                            rs.getDouble(4), rs.getInt(5) == 1, rs.getInt(6) == 1);
+                    d.setNombreProducto(rs.getString(7));
+                    d.setAbreviatura(rs.getString(8));
+                    d.setCantidadSolicitada(rs.getDouble(9));
+                    d.setCantidadAlistada(rs.getDouble(10));
                     lista.add(d);
                 }
             }
@@ -97,13 +100,14 @@ public class DespachoDAOSqlite implements DespachoDAO {
 
     @Override
     public void agregarDetalle(DetalleDespacho d) {
-        String sql = "INSERT INTO detalle_despacho (id_despacho, id_producto, cantidad_despachada, verificado) "
-                + "VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO detalle_despacho (id_despacho, id_producto, cantidad_despachada, verificado, faltante_aceptado) "
+                + "VALUES (?, ?, ?, ?, ?)";
         try (Connection c = ConexionBD.obtener(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, d.getIdDespacho());
             ps.setInt(2, d.getIdProducto());
             ps.setDouble(3, d.getCantidadDespachada());
             ps.setInt(4, d.isVerificado() ? 1 : 0);
+            ps.setInt(5, d.isFaltanteAceptado() ? 1 : 0);
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Error al agregar producto al despacho: " + e.getMessage(), e);
@@ -112,11 +116,13 @@ public class DespachoDAOSqlite implements DespachoDAO {
 
     @Override
     public void actualizarDetalle(DetalleDespacho d) {
-        String sql = "UPDATE detalle_despacho SET cantidad_despachada = ?, verificado = ? WHERE id_detalle_despacho = ?";
+        String sql = "UPDATE detalle_despacho SET cantidad_despachada = ?, verificado = ?, faltante_aceptado = ? "
+                + "WHERE id_detalle_despacho = ?";
         try (Connection c = ConexionBD.obtener(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setDouble(1, d.getCantidadDespachada());
             ps.setInt(2, d.isVerificado() ? 1 : 0);
-            ps.setInt(3, d.getIdDetalleDespacho());
+            ps.setInt(3, d.isFaltanteAceptado() ? 1 : 0);
+            ps.setInt(4, d.getIdDetalleDespacho());
             ps.executeUpdate();
         } catch (SQLException e) {
             throw new RuntimeException("Error al actualizar detalle de despacho: " + e.getMessage(), e);

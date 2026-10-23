@@ -11,6 +11,7 @@ public class DetalleAlistamiento {
     private String nombreProducto;
     private String abreviatura;
     private double cantidadSolicitada;
+    private double cantidadRecibida;
 
     public DetalleAlistamiento() {}
 
@@ -39,4 +40,6 @@ public class DetalleAlistamiento {
     public void setAbreviatura(String abreviatura) { this.abreviatura = abreviatura; }
     public double getCantidadSolicitada() { return cantidadSolicitada; }
     public void setCantidadSolicitada(double cantidadSolicitada) { this.cantidadSolicitada = cantidadSolicitada; }
+    public double getCantidadRecibida() { return cantidadRecibida; }
+    public void setCantidadRecibida(double cantidadRecibida) { this.cantidadRecibida = cantidadRecibida; }
 }

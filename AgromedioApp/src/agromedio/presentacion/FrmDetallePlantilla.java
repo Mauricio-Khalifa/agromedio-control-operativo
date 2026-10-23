@@ -44,8 +44,8 @@ public class FrmDetallePlantilla extends JInternalFrame {
     private final JTable tablaSaldo;
     private final JComboBox<Producto> cmbProducto = new JComboBox<>();
     private final JTextField txtCantidad = UiUtil.campo();
-    private final JButton btnAgregar = UiUtil.boton("Agregar");
-    private final JButton btnQuitar = UiUtil.boton("Quitar");
+    private final JButton btnAgregar = UiUtil.botonPrimario("Agregar");
+    private final JButton btnQuitar = UiUtil.botonSecundario("Quitar");
     private final JLabel lblEstado = new JLabel();
     private DetallePlantilla[] cache = new DetallePlantilla[0];
     private int idDetalleSel = 0;
@@ -54,29 +54,36 @@ public class FrmDetallePlantilla extends JInternalFrame {
         super("Detalle de plantilla", true, true, true, true);
         this.idPlantilla = idPlantilla;
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        setSize(980, 620);
+        setSize(1120, 700);
         setLayout(new BorderLayout(8, 8));
+        getContentPane().setBackground(Tema.FONDO);
 
-        JPanel norte = new JPanel(new BorderLayout());
-        norte.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+        JPanel norte = new JPanel(new BorderLayout(8, 0));
+        norte.setOpaque(false);
+        norte.setBorder(BorderFactory.createEmptyBorder(8, 10, 2, 10));
         JLabel lblTitulo = new JLabel();
         lblTitulo.setFont(UiUtil.FUENTE_TITULO);
-        norte.add(lblTitulo, BorderLayout.CENTER);
+        norte.add(lblTitulo, BorderLayout.WEST);
+        lblEstado.setFont(Tema.PEQUENA.deriveFont(java.awt.Font.BOLD));
+        lblEstado.setForeground(Tema.PRIMARIO_OSCURO);
+        lblEstado.setOpaque(true);
+        lblEstado.setBackground(Tema.PRIMARIO_SUAVE);
+        lblEstado.setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
         norte.add(lblEstado, BorderLayout.EAST);
         add(norte, BorderLayout.NORTH);
 
-        modeloDetalle = UiUtil.modelo(new Object[]{"ID", "Producto", "Cantidad solicitada", "Unidad"}, false);
+        modeloDetalle = UiUtil.modelo(new Object[]{"Producto", "Cantidad solicitada", "Unidad"}, false);
         tablaDetalle = new JTable(modeloDetalle);
         UiUtil.prepararTabla(tablaDetalle);
         JScrollPane scrollDetalle = new JScrollPane(tablaDetalle);
-        scrollDetalle.setBorder(BorderFactory.createTitledBorder("Productos solicitados"));
+        scrollDetalle.setBorder(BorderFactory.createLineBorder(Tema.BORDE));
 
         modeloSaldo = UiUtil.modelo(new Object[]{"Producto", "Solicitado", "Comprado", "Recibido",
                 "Alistado", "Despachado", "Por despachar"}, false);
         tablaSaldo = new JTable(modeloSaldo);
         UiUtil.prepararTabla(tablaSaldo);
         JScrollPane scrollSaldo = new JScrollPane(tablaSaldo);
-        scrollSaldo.setBorder(BorderFactory.createTitledBorder("Saldo integral (vista v_saldo_plantilla)"));
+        scrollSaldo.setBorder(BorderFactory.createLineBorder(Tema.BORDE));
 
         JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, scrollDetalle, scrollSaldo);
         split.setResizeWeight(0.55);
@@ -86,7 +93,10 @@ public class FrmDetallePlantilla extends JInternalFrame {
             cmbProducto.addItem(p);
         }
         JPanel form = new JPanel(new GridBagLayout());
-        form.setBorder(BorderFactory.createTitledBorder("Agregar producto (solo mientras la plantilla este CARGADA)"));
+        form.setBackground(Tema.SUPERFICIE);
+        form.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Tema.BORDE),
+                BorderFactory.createEmptyBorder(8, 10, 8, 10)));
         GridBagConstraints g = new GridBagConstraints();
         g.insets = new Insets(6, 6, 6, 6);
         g.anchor = GridBagConstraints.WEST;
@@ -100,7 +110,8 @@ public class FrmDetallePlantilla extends JInternalFrame {
         txtCantidad.setPreferredSize(new java.awt.Dimension(120, 34));
         form.add(txtCantidad, g);
 
-        JPanel botones = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        JPanel botones = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
+        botones.setOpaque(false);
         botones.add(btnAgregar);
         botones.add(btnQuitar);
 
@@ -171,7 +182,7 @@ public class FrmDetallePlantilla extends JInternalFrame {
         modeloDetalle.setRowCount(0);
         cache = servicio.detalle(idPlantilla).toArray(new DetallePlantilla[0]);
         for (DetallePlantilla d : cache) {
-            modeloDetalle.addRow(new Object[]{d.getIdDetallePlantilla(), d.getNombreProducto(),
+            modeloDetalle.addRow(new Object[]{d.getNombreProducto(),
                     d.getCantidadSolicitada(), d.getAbreviatura()});
         }
         modeloSaldo.setRowCount(0);

@@ -156,8 +156,8 @@ public class ConsultaDAOSqlite implements ConsultaDAO {
     @Override
     public List<FilaAvance> avanceDespacho() {
         List<FilaAvance> filas = new ArrayList<>();
-        String sql = "SELECT id_despacho, id_plantilla, nombre_mercado, fecha_despacho, estado, items, verificados, porcentaje "
-                + "FROM v_avance_despacho ORDER BY fecha_despacho DESC, nombre_mercado";
+        String sql = "SELECT id_despacho, id_plantilla, nombre_mercado, fecha_despacho, estado, items, verificados, "
+                + "porcentaje, con_novedad FROM v_avance_despacho ORDER BY fecha_despacho DESC, nombre_mercado";
         try (Connection c = ConexionBD.obtener();
              PreparedStatement ps = c.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
@@ -171,6 +171,7 @@ public class ConsultaDAOSqlite implements ConsultaDAO {
                 f.setItems(rs.getInt(6));
                 f.setVerificados(rs.getInt(7));
                 f.setPorcentaje(rs.getDouble(8));
+                f.setConNovedad(rs.getInt(9) == 1);
                 filas.add(f);
             }
         } catch (SQLException e) {

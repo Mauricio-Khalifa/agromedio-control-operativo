@@ -17,7 +17,7 @@ public class CatalogoClientes implements AdaptadorCatalogo {
 
     @Override
     public String[] columnasTabla() {
-        return new String[]{"ID", "Entidad", "Contacto", "Telefono"};
+        return new String[]{"Entidad", "Contacto", "Teléfono"};
     }
 
     @Override
@@ -25,7 +25,7 @@ public class CatalogoClientes implements AdaptadorCatalogo {
         cache = dao.listar();
         List<Object[]> filas = new ArrayList<>();
         for (Cliente c : cache) {
-            filas.add(new Object[]{c.getIdCliente(), c.getNombreEntidad(), c.getContacto(), c.getTelefono()});
+            filas.add(new Object[]{c.getNombreEntidad(), c.getContacto(), c.getTelefono()});
         }
         return filas;
     }
@@ -37,7 +37,7 @@ public class CatalogoClientes implements AdaptadorCatalogo {
 
     @Override
     public String[] etiquetasCampos() {
-        return new String[]{"Nombre de la entidad", "Contacto", "Telefono"};
+        return new String[]{"Nombre de la entidad", "Contacto", "Teléfono"};
     }
 
     @Override

@@ -10,6 +10,7 @@ public class FilaAvance {
     private int items;
     private int verificados;
     private double porcentaje;
+    private boolean conNovedad;
 
     public int getIdDespacho() { return idDespacho; }
     public void setIdDespacho(int idDespacho) { this.idDespacho = idDespacho; }
@@ -27,4 +28,6 @@ public class FilaAvance {
     public void setVerificados(int verificados) { this.verificados = verificados; }
     public double getPorcentaje() { return porcentaje; }
     public void setPorcentaje(double porcentaje) { this.porcentaje = porcentaje; }
+    public boolean isConNovedad() { return conNovedad; }
+    public void setConNovedad(boolean conNovedad) { this.conNovedad = conNovedad; }
 }

@@ -2,7 +2,6 @@ package agromedio.presentacion;
 
 import agromedio.logica.RecepcionServicio;
 import agromedio.modelo.Compra;
-import agromedio.modelo.DetalleCompra;
 import agromedio.modelo.DetalleRecepcion;
 import agromedio.modelo.Recepcion;
 
@@ -19,126 +18,194 @@ import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Modulo 2 - Recepcion: entradas fisicas (RF05) y faltantes (RF06). */
+/** Modulo 2 - Recepcion: entregas parciales (RF05 / RN-05) y faltante acumulado (RF06 / RN-06). */
 public class FrmRecepcion extends JInternalFrame {
+
+    private static final int COL_PRODUCTO = 0;
+    private static final int COL_COMPRADO = 2;
+    private static final int COL_RECIBIDO = 4;
+    private static final int COL_FALTANTE = 5;
+    private static final int COL_RECIBIR = 6;
 
     private final RecepcionServicio servicio = new RecepcionServicio();
 
     private final JComboBox<Compra> cmbCompra = new JComboBox<>();
     private final JTextField txtObservaciones = UiUtil.campo();
+    private final JButton btnRegistrar = UiUtil.botonPrimario("Registrar entrega");
+    private final JLabel lblResumen = UiUtil.subtitulo("Seleccione una compra pendiente.");
 
-    private DefaultTableModel modeloDetalle;
-    private DefaultTableModel modeloFaltantes;
-    private List<DetalleCompra> detalles = new ArrayList<>();
-    private boolean yaRegistrada = false;
+    private final DefaultTableModel modeloDetalle;
+    private final DefaultTableModel modeloHistorial;
 
     public FrmRecepcion() {
-        super("Recepcion de mercancia", true, true, true, true);
+        super("Recepción de mercancía", true, true, true, true);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
-        setSize(980, 640);
+        setSize(1160, 720);
         setLayout(new BorderLayout(8, 8));
+        getContentPane().setBackground(Tema.FONDO);
 
         modeloDetalle = new DefaultTableModel(
-                new Object[]{"ID", "Producto", "Proveedor", "Comprado", "U.", "Recibida"}, 0) {
+                new Object[]{"Producto", "Proveedor", "Comprado", "U.", "Recibido acum.",
+                        "Faltante (máx.)", "Recibir ahora"}, 0) {
             @Override
-            public boolean isCellEditable(int f, int c) {
-                return c == 5 && !yaRegistrada;
+            public boolean isCellEditable(int fila, int columna) {
+                if (columna != COL_RECIBIR) {
+                    return false;
+                }
+                Object faltante = getValueAt(fila, COL_FALTANTE);
+                return faltante instanceof Number n && n.doubleValue() > 0;
             }
         };
-        modeloFaltantes = UiUtil.modelo(
-                new Object[]{"Producto", "Proveedor", "Comprado", "Recibido", "Faltante", "U."}, false);
+        modeloHistorial = UiUtil.modelo(
+                new Object[]{"Entrega", "Fecha", "Observaciones"}, false);
 
         JTable tablaDetalle = new JTable(modeloDetalle);
         UiUtil.prepararTabla(tablaDetalle);
+        tablaDetalle.setToolTipText("Escriba solo las cantidades que llegan en esta entrega. El faltante es el máximo permitido.");
         JScrollPane scrollDetalle = new JScrollPane(tablaDetalle);
-        scrollDetalle.setBorder(BorderFactory.createTitledBorder(
-                "Detalle de la compra - edite la columna 'Recibida' si llego menos de lo comprado (RF05)"));
+        scrollDetalle.setBorder(BorderFactory.createLineBorder(Tema.BORDE));
 
-        JTable tablaFaltantes = new JTable(modeloFaltantes);
-        UiUtil.prepararTabla(tablaFaltantes);
-        JScrollPane scrollFaltantes = new JScrollPane(tablaFaltantes);
-        scrollFaltantes.setBorder(BorderFactory.createTitledBorder(
-                "Faltantes detectados automaticamente por la base de datos (RF06)"));
+        JTable tablaHistorial = new JTable(modeloHistorial);
+        UiUtil.prepararTabla(tablaHistorial);
+        JScrollPane scrollHistorial = new JScrollPane(tablaHistorial);
+        scrollHistorial.setBorder(BorderFactory.createLineBorder(Tema.BORDE));
 
-        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, scrollDetalle, scrollFaltantes);
-        split.setResizeWeight(0.6);
+        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, scrollDetalle, scrollHistorial);
+        split.setResizeWeight(0.68);
+        split.setBorder(null);
+        split.setOpaque(false);
         add(split, BorderLayout.CENTER);
 
-        JPanel norte = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 8));
-        norte.add(new JLabel("Compra pendiente:"));
-        norte.add(cmbCompra);
-        norte.add(new JLabel("Observaciones:"));
-        txtObservaciones.setPreferredSize(new java.awt.Dimension(340, 34));
-        norte.add(txtObservaciones);
-        add(norte, BorderLayout.NORTH);
+        add(crearNorte(), BorderLayout.NORTH);
 
-        JButton btnRegistrar = UiUtil.boton("Registrar entrada (RF05)");
-        JButton btnCerrar = UiUtil.boton("Cerrar recepcion");
-        JButton btnRefrescar = UiUtil.boton("Refrescar");
-        JPanel sur = new JPanel(new FlowLayout(FlowLayout.CENTER, 16, 10));
-        sur.add(btnRegistrar);
-        sur.add(btnCerrar);
-        sur.add(btnRefrescar);
+        JButton btnCerrar = UiUtil.botonSecundario("Cerrar recepción");
+        JButton btnRefrescar = UiUtil.botonSecundario("Refrescar");
+        JPanel sur = new JPanel(new BorderLayout(8, 0));
+        sur.setOpaque(false);
+        sur.setBorder(BorderFactory.createEmptyBorder(4, 10, 8, 10));
+        JPanel acciones = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        acciones.setOpaque(false);
+        acciones.add(btnRegistrar);
+        acciones.add(btnCerrar);
+        acciones.add(btnRefrescar);
+        sur.add(acciones, BorderLayout.WEST);
+        sur.add(lblResumen, BorderLayout.EAST);
         add(sur, BorderLayout.SOUTH);
 
         cmbCompra.addActionListener(e -> seleccionarCompra());
         btnRegistrar.addActionListener(e -> registrar());
         btnCerrar.addActionListener(e -> cerrar());
         btnRefrescar.addActionListener(e -> cargarCompras());
+        modeloDetalle.addTableModelListener(e -> actualizarResumen());
 
+        btnRegistrar.setEnabled(false);
         cargarCompras();
         UiUtil.fuenteRaiz(this);
     }
 
+    private JPanel crearNorte() {
+        JPanel norte = new JPanel(new BorderLayout(8, 6));
+        norte.setOpaque(false);
+        norte.setBorder(BorderFactory.createEmptyBorder(8, 10, 2, 10));
+        norte.add(UiUtil.encabezado("Recepción de mercancía",
+                "Registre entregas parciales. El sistema acumula lo recibido y conserva el faltante."),
+                BorderLayout.NORTH);
+
+        JPanel form = new JPanel(new GridBagLayout());
+        form.setBackground(Tema.SUPERFICIE);
+        form.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Tema.BORDE),
+                BorderFactory.createEmptyBorder(8, 10, 8, 10)));
+        GridBagConstraints g = new GridBagConstraints();
+        g.insets = new Insets(4, 6, 4, 6);
+        g.anchor = GridBagConstraints.WEST;
+
+        g.gridx = 0; g.gridy = 0;
+        form.add(new JLabel("Compra pendiente"), g);
+        g.gridx = 1; g.weightx = 1; g.fill = GridBagConstraints.HORIZONTAL;
+        cmbCompra.setPreferredSize(new java.awt.Dimension(330, 34));
+        form.add(cmbCompra, g);
+
+        g.gridx = 0; g.gridy = 1; g.weightx = 0; g.fill = GridBagConstraints.NONE;
+        form.add(new JLabel("Observaciones"), g);
+        g.gridx = 1; g.weightx = 1; g.fill = GridBagConstraints.HORIZONTAL;
+        txtObservaciones.setPreferredSize(new java.awt.Dimension(520, 34));
+        form.add(txtObservaciones, g);
+
+        norte.add(form, BorderLayout.CENTER);
+        return norte;
+    }
+
     private void cargarCompras() {
+        modeloDetalle.setRowCount(0);
+        modeloHistorial.setRowCount(0);
+        txtObservaciones.setText("");
         cmbCompra.removeAllItems();
         for (Compra c : servicio.comprasPendientes()) {
             cmbCompra.addItem(c);
         }
-        modeloDetalle.setRowCount(0);
-        modeloFaltantes.setRowCount(0);
-        yaRegistrada = false;
-        if (cmbCompra.getItemCount() == 0) {
-            txtObservaciones.setText("No hay compras pendientes de recepcion.");
+        boolean hay = cmbCompra.getItemCount() > 0;
+        cmbCompra.setEnabled(hay);
+        txtObservaciones.setEnabled(hay);
+        if (hay) {
+            cmbCompra.setSelectedIndex(0);
+            seleccionarCompra();
+        } else {
+            lblResumen.setText("No hay compras pendientes de recepción.");
+            btnRegistrar.setEnabled(false);
         }
     }
 
     private void seleccionarCompra() {
         modeloDetalle.setRowCount(0);
-        modeloFaltantes.setRowCount(0);
+        modeloHistorial.setRowCount(0);
         Compra compra = (Compra) cmbCompra.getSelectedItem();
+        btnRegistrar.setEnabled(false);
         if (compra == null) {
+            lblResumen.setText("Seleccione una compra pendiente.");
             return;
         }
-        detalles = servicio.detalleCompra(compra.getIdCompra());
-        yaRegistrada = false;
 
-        // Si ya existe una recepcion cargada, se muestra en modo lectura
+        // Una fila por producto con el acumulado de todas las entregas.
+        for (DetalleRecepcion d : servicio.estadoRecepcion(compra.getIdCompra())) {
+            modeloDetalle.addRow(new Object[]{d.getNombreProducto(), d.getNombreProveedor(),
+                    d.getCantidadComprada(), d.getAbreviatura(), d.getCantidadRecibida(),
+                    d.getCantidadFaltante(), 0.0});
+        }
+
         List<Recepcion> previas = servicio.recepcionesDe(compra.getIdCompra());
-        if (!previas.isEmpty()) {
-            yaRegistrada = true;
-            Recepcion ultima = previas.get(previas.size() - 1);
-            txtObservaciones.setText(ultima.getObservaciones() == null ? "" : ultima.getObservaciones());
-            for (DetalleRecepcion dr : servicio.detalle(ultima.getIdRecepcion())) {
-                modeloDetalle.addRow(new Object[]{dr.getIdDetalleCompra(), dr.getNombreProducto(),
-                        dr.getNombreProveedor(), dr.getCantidadComprada(), dr.getAbreviatura(),
-                        dr.getCantidadRecibida()});
-                if (dr.getCantidadFaltante() > 0) {
-                    modeloFaltantes.addRow(new Object[]{dr.getNombreProducto(), dr.getNombreProveedor(),
-                            dr.getCantidadComprada(), dr.getCantidadRecibida(), dr.getCantidadFaltante(),
-                            dr.getAbreviatura()});
-                }
+        for (Recepcion r : previas) {
+            modeloHistorial.addRow(new Object[]{r.getIdRecepcion(), r.getFechaRecepcion(),
+                    r.getObservaciones()});
+        }
+        txtObservaciones.setText("");
+        actualizarResumen();
+    }
+
+    private void actualizarResumen() {
+        int lineas = modeloDetalle.getRowCount();
+        int pendientes = 0;
+        int conCantidad = 0;
+        for (int i = 0; i < lineas; i++) {
+            Object faltante = modeloDetalle.getValueAt(i, COL_FALTANTE);
+            if (faltante instanceof Number n && n.doubleValue() > 0) {
+                pendientes++;
             }
-        } else {
-            for (DetalleCompra d : detalles) {
-                modeloDetalle.addRow(new Object[]{d.getIdDetalleCompra(), d.getNombreProducto(),
-                        d.getNombreProveedor(), d.getCantidadComprada(), d.getAbreviatura(),
-                        d.getCantidadComprada()});
+            if (valor(modeloDetalle.getValueAt(i, COL_RECIBIR)) > 0) {
+                conCantidad++;
             }
         }
+        lblResumen.setText(lineas == 0
+                ? "Seleccione una compra con detalle."
+                : lineas + " líneas  |  " + pendientes + " con faltante  |  "
+                + conCantidad + " por registrar");
+        btnRegistrar.setEnabled(lineas > 0 && conCantidad > 0);
     }
 
     private void registrar() {
@@ -147,28 +214,27 @@ public class FrmRecepcion extends JInternalFrame {
             if (compra == null) {
                 throw new IllegalArgumentException("Seleccione una compra pendiente.");
             }
-            if (yaRegistrada) {
-                throw new IllegalStateException("Esta compra ya tiene recepcion registrada; use 'Cerrar recepcion'.");
-            }
             List<Double> recibidas = new ArrayList<>();
             for (int i = 0; i < modeloDetalle.getRowCount(); i++) {
-                Object v = modeloDetalle.getValueAt(i, 5);
-                recibidas.add(v == null ? 0.0 : Double.parseDouble(v.toString().replace(',', '.')));
+                double cantidad = valor(modeloDetalle.getValueAt(i, COL_RECIBIR));
+                double maximo = valor(modeloDetalle.getValueAt(i, COL_FALTANTE));
+                if (cantidad < 0) {
+                    throw new IllegalArgumentException("La cantidad recibida no puede ser negativa.");
+                }
+                if (cantidad > maximo + 0.0001) {
+                    throw new IllegalArgumentException("La cantidad de "
+                            + modeloDetalle.getValueAt(i, COL_PRODUCTO)
+                            + " supera el faltante permitido (" + Formato.numero(maximo) + ").");
+                }
+                recibidas.add(cantidad);
             }
-            List<DetalleRecepcion> faltantes = servicio.registrarRecepcion(
+            List<DetalleRecepcion> pendientes = servicio.registrarRecepcion(
                     compra.getIdCompra(), null, txtObservaciones.getText(), recibidas);
-            yaRegistrada = true;
-            modeloFaltantes.setRowCount(0);
-            for (DetalleRecepcion f : faltantes) {
-                modeloFaltantes.addRow(new Object[]{f.getNombreProducto(), f.getNombreProveedor(),
-                        f.getCantidadComprada(), f.getCantidadRecibida(), f.getCantidadFaltante(),
-                        f.getAbreviatura()});
-            }
-            if (faltantes.isEmpty()) {
-                UiUtil.mensaje(this, "Entrada registrada completa: no hay faltantes.");
+            if (pendientes.isEmpty()) {
+                UiUtil.mensaje(this, "Entrega registrada. La compra quedó completa.");
             } else {
-                UiUtil.mensaje(this, "Entrada registrada con " + faltantes.size()
-                        + " faltante(s). Revise la tabla inferior (RF06).");
+                UiUtil.mensaje(this, "Entrega registrada. Quedan " + pendientes.size()
+                        + " producto(s) con faltante acumulado. Puede registrar otra entrega.");
             }
             seleccionarCompra();
         } catch (Exception e) {
@@ -182,11 +248,31 @@ public class FrmRecepcion extends JInternalFrame {
             if (compra == null) {
                 throw new IllegalArgumentException("Seleccione una compra pendiente.");
             }
+            List<DetalleRecepcion> pendientes = servicio.faltantesPendientes(compra.getIdCompra());
+            if (!pendientes.isEmpty()) {
+                boolean continuar = UiUtil.confirmar(this,
+                        "Quedan " + pendientes.size() + " producto(s) con faltante acumulado.\n"
+                        + "Si cierra la recepción, el faltante quedará registrado para el reporte.\n"
+                        + "¿Desea cerrar de todos modos?");
+                if (!continuar) {
+                    return;
+                }
+            }
             servicio.cerrarRecepcion(compra.getIdCompra());
-            UiUtil.mensaje(this, "Recepcion cerrada. La plantilla paso a ALISTANDO (produccion).");
+            UiUtil.mensaje(this, "Recepción cerrada. La plantilla pasó a ALISTANDO (producción).");
             cargarCompras();
         } catch (Exception e) {
             UiUtil.error(this, e);
         }
+    }
+
+    private static double valor(Object v) {
+        if (v == null) {
+            return 0;
+        }
+        if (v instanceof Number n) {
+            return n.doubleValue();
+        }
+        return Formato.decimal(v.toString());
     }
 }

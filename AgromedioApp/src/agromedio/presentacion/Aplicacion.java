@@ -4,17 +4,12 @@ import agromedio.datos.ConexionBD;
 
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
 
 /** Punto de entrada de la aplicacion de escritorio. */
 public class Aplicacion {
 
     public static void main(String[] args) {
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (Exception ignore) {
-            // se mantiene el Look and Feel por defecto
-        }
+        Tema.instalar();
         SwingUtilities.invokeLater(() -> {
             try {
                 ConexionBD.inicializar();
