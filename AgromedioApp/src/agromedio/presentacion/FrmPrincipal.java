@@ -311,6 +311,7 @@ public class FrmPrincipal extends JFrame {
         mConsultas.add(item("Reportes operativos", e -> abrirModulo("reportes", FrmReportes::new)));
 
         JMenu mVentana = new JMenu("Ventana");
+        mVentana.add(item("Cerrar ventana activa", e -> navegador.cerrarActiva()));
         mVentana.add(item("Cerrar todas las ventanas", e -> navegador.cerrarTodo()));
 
         JMenu mAyuda = new JMenu("Ayuda");

@@ -4,11 +4,13 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
+import javax.swing.JInternalFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.KeyStroke;
 import javax.swing.ListSelectionModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
@@ -19,8 +21,13 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Insets;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Locale;
@@ -100,6 +107,81 @@ public final class UiUtil {
             panel.add(subtitulo(subtitulo), BorderLayout.SOUTH);
         }
         return panel;
+    }
+
+    /**
+     * Integra el cierre de la ventana en su cabecera y elimina la necesidad de
+     * mostrar una barra de titulo interna duplicada.
+     *
+     * @return true si se pudo instalar el control de cierre
+     */
+    public static boolean instalarCierre(JInternalFrame frame) {
+        if (frame == null) {
+            return false;
+        }
+        if (!(frame.getContentPane().getLayout() instanceof BorderLayout raiz)) {
+            return false;
+        }
+        Component norte = raiz.getLayoutComponent(BorderLayout.NORTH);
+        if (!(norte instanceof JPanel panel) || !(panel.getLayout() instanceof BorderLayout layout)) {
+            return false;
+        }
+
+        JButton cerrar = botonCerrar(frame);
+        Component cabecera = layout.getLayoutComponent(BorderLayout.NORTH);
+        if (cabecera instanceof JPanel cabeceraPanel) {
+            cabeceraPanel.add(cerrar, BorderLayout.EAST);
+        } else {
+            Component este = layout.getLayoutComponent(BorderLayout.EAST);
+            if (este instanceof JPanel estePanel && estePanel.getLayout() instanceof FlowLayout) {
+                estePanel.add(cerrar);
+            } else if (este != null) {
+                JPanel contenedor = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+                contenedor.setOpaque(false);
+                contenedor.add(este);
+                contenedor.add(cerrar);
+                panel.add(contenedor, BorderLayout.EAST);
+            } else {
+                panel.add(cerrar, BorderLayout.EAST);
+            }
+        }
+
+        frame.getRootPane().registerKeyboardAction(e -> frame.dispose(),
+                KeyStroke.getKeyStroke(KeyEvent.VK_W, InputEvent.CTRL_DOWN_MASK),
+                JComponent.WHEN_IN_FOCUSED_WINDOW);
+        panel.revalidate();
+        panel.repaint();
+        return true;
+    }
+
+    private static JButton botonCerrar(JInternalFrame frame) {
+        JButton boton = new JButton("\u00D7");
+        boton.setFont(Tema.fuente(Font.PLAIN, 19));
+        boton.setForeground(Tema.TEXTO_SUAVE);
+        boton.setPreferredSize(new Dimension(30, 30));
+        boton.setMinimumSize(new Dimension(30, 30));
+        boton.setMaximumSize(new Dimension(30, 30));
+        boton.setMargin(new Insets(0, 0, 0, 0));
+        boton.setBorder(BorderFactory.createEmptyBorder());
+        boton.setContentAreaFilled(false);
+        boton.setFocusPainted(false);
+        boton.setOpaque(false);
+        boton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        boton.setToolTipText("Cerrar ventana (Ctrl+W)");
+        boton.getAccessibleContext().setAccessibleName("Cerrar ventana");
+        boton.addActionListener(e -> frame.dispose());
+        boton.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                boton.setForeground(Tema.PELIGRO);
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                boton.setForeground(Tema.TEXTO_SUAVE);
+            }
+        });
+        return boton;
     }
 
     public static JPanel tarjeta(java.awt.LayoutManager layout) {

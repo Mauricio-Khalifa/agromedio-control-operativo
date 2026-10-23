@@ -15,6 +15,7 @@ import agromedio.presentacion.CatalogoCategorias;
 import agromedio.presentacion.CatalogoClientes;
 import agromedio.presentacion.CatalogoProveedores;
 import agromedio.presentacion.CatalogoUnidades;
+import agromedio.presentacion.UiUtil;
 
 import javax.swing.JInternalFrame;
 import javax.swing.SwingUtilities;
@@ -68,6 +69,9 @@ public class PruebaVistas {
                 JInternalFrame f = null;
                 try {
                     f = fabricas.get(idx).get();
+                    if (!UiUtil.instalarCierre(f)) {
+                        throw new IllegalStateException("No se pudo integrar el cierre en la cabecera");
+                    }
                     f.setVisible(true);
                 } catch (Throwable t) {
                     error.set(t);

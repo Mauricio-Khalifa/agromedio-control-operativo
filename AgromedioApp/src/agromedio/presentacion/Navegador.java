@@ -4,6 +4,7 @@ import javax.swing.JDesktopPane;
 import javax.swing.JInternalFrame;
 import javax.swing.event.InternalFrameAdapter;
 import javax.swing.event.InternalFrameEvent;
+import javax.swing.plaf.basic.BasicInternalFrameUI;
 import java.awt.Dimension;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -39,6 +40,9 @@ public final class Navegador {
 
         JInternalFrame frame = fabrica.get();
         frame.setFrameIcon(null);
+        if (UiUtil.instalarCierre(frame) && frame.getUI() instanceof BasicInternalFrameUI ui) {
+            ui.setNorthPane(null);
+        }
         abiertos.put(clave, frame);
         frame.addInternalFrameListener(new InternalFrameAdapter() {
             @Override
@@ -51,6 +55,13 @@ public final class Navegador {
         frame.setVisible(true);
         mostrar(frame);
         return frame;
+    }
+
+    public void cerrarActiva() {
+        JInternalFrame frame = escritorio.getSelectedFrame();
+        if (frame != null) {
+            frame.dispose();
+        }
     }
 
     public void cerrarTodo() {
