@@ -22,6 +22,7 @@ public final class Tema {
     public static final Color PRIMARIO_OSCURO = new Color(35, 79, 59);
     public static final Color PRIMARIO_SUAVE = new Color(230, 240, 232);
     public static final Color ACENTO = new Color(163, 100, 42);
+    public static final Color ACENTO_CLARO = new Color(232, 190, 120);
     public static final Color EXITO = new Color(46, 125, 79);
     public static final Color ADVERTENCIA = new Color(168, 102, 18);
     public static final Color PELIGRO = new Color(180, 35, 24);

@@ -4,6 +4,7 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
+import javax.swing.Icon;
 import javax.swing.JInternalFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -61,11 +62,19 @@ public final class UiUtil {
         return b;
     }
 
+    public static JButton botonPrimario(String texto, Icon icono) {
+        return conIcono(botonPrimario(texto), icono);
+    }
+
     public static JButton botonSecundario(String texto) {
         JButton b = boton(texto);
         b.setBackground(Tema.SUPERFICIE);
         b.setForeground(Tema.TEXTO);
         return b;
+    }
+
+    public static JButton botonSecundario(String texto, Icon icono) {
+        return conIcono(botonSecundario(texto), icono);
     }
 
     public static JButton botonPeligro(String texto) {
@@ -74,6 +83,19 @@ public final class UiUtil {
         b.setForeground(Color.WHITE);
         b.setOpaque(true);
         return b;
+    }
+
+    public static JButton botonPeligro(String texto, Icon icono) {
+        return conIcono(botonPeligro(texto), icono);
+    }
+
+    private static JButton conIcono(JButton boton, Icon icono) {
+        if (icono == null) {
+            throw new IllegalArgumentException("El icono del boton es obligatorio");
+        }
+        boton.setIcon(icono);
+        boton.setIconTextGap(8);
+        return boton;
     }
 
     public static JTextField campo() {

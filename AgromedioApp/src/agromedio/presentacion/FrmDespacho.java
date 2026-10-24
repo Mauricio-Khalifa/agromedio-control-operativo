@@ -20,6 +20,7 @@ import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
 import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
@@ -42,9 +43,12 @@ public class FrmDespacho extends JInternalFrame {
     private final JLabel lblProgreso = new JLabel("0 / 0 ítems verificados (0%)");
     private final JLabel lblSeleccion = UiUtil.subtitulo("Seleccione un ítem para verificar.");
     private final DefaultTableModel modelo;
-    private final JButton btnVerificar = UiUtil.botonPrimario("Verificar ítem");
-    private final JButton btnDesmarcar = UiUtil.botonSecundario("Desmarcar ítem");
-    private final JButton btnCerrar = UiUtil.botonSecundario("Cerrar despacho");
+    private final JButton btnVerificar = UiUtil.botonPrimario("Verificar ítem",
+            Iconos.accion(Iconos.Accion.VERIFICAR, Color.WHITE));
+    private final JButton btnDesmarcar = UiUtil.botonSecundario("Desmarcar ítem",
+            Iconos.accion(Iconos.Accion.QUITAR, Tema.PRIMARIO));
+    private final JButton btnCerrar = UiUtil.botonSecundario("Cerrar despacho",
+            Iconos.accion(Iconos.Accion.CERRAR, Tema.PRIMARIO));
 
     private JTable tabla;
     private Despacho despachoActual;
@@ -131,7 +135,8 @@ public class FrmDespacho extends JInternalFrame {
         barra.add(cmbPlantilla, g);
 
         g.gridx = 2; g.weightx = 0; g.fill = GridBagConstraints.NONE;
-        JButton btnIniciar = UiUtil.botonSecundario("Abrir lista");
+        JButton btnIniciar = UiUtil.botonSecundario("Abrir lista",
+                Iconos.accion(Iconos.Accion.ABRIR, Tema.PRIMARIO));
         barra.add(btnIniciar, g);
 
         g.gridx = 3;

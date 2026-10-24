@@ -15,6 +15,7 @@ import javax.swing.JTextArea;
 import javax.swing.SwingWorker;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.FlowLayout;
 import java.io.File;
 import java.util.concurrent.ExecutionException;
@@ -25,8 +26,10 @@ public class FrmCargaExcel extends JInternalFrame {
     private final CargaExcelServicio servicio = new CargaExcelServicio();
     private final JTextArea areaResultado = new JTextArea();
     private final JLabel lblArchivo = new JLabel("Ningún archivo seleccionado");
-    private final JButton btnSeleccionar = UiUtil.botonSecundario("Seleccionar archivo");
-    private final JButton btnCargar = UiUtil.botonPrimario("Cargar en el sistema");
+    private final JButton btnSeleccionar = UiUtil.botonSecundario("Seleccionar archivo",
+            Iconos.accion(Iconos.Accion.ABRIR, Tema.PRIMARIO));
+    private final JButton btnCargar = UiUtil.botonPrimario("Cargar en el sistema",
+            Iconos.accion(Iconos.Accion.CARGAR, Color.WHITE));
     private final JProgressBar progreso = new JProgressBar();
     private File archivoSeleccionado;
 

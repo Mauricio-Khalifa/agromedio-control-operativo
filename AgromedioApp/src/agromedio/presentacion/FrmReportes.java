@@ -15,6 +15,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -59,8 +60,10 @@ public class FrmReportes extends JInternalFrame {
         scroll.setBorder(BorderFactory.createLineBorder(Tema.BORDE));
         add(scroll, BorderLayout.CENTER);
 
-        JButton btnImprimir = UiUtil.botonPrimario("Imprimir reporte");
-        JButton btnLimpiar = UiUtil.botonSecundario("Limpiar");
+        JButton btnImprimir = UiUtil.botonPrimario("Imprimir reporte",
+                Iconos.accion(Iconos.Accion.IMPRIMIR, Color.WHITE));
+        JButton btnLimpiar = UiUtil.botonSecundario("Limpiar",
+                Iconos.accion(Iconos.Accion.LIMPIAR, Tema.PRIMARIO));
         JPanel sur = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
         sur.setOpaque(false);
         sur.setBorder(BorderFactory.createEmptyBorder(0, 10, 6, 10));
@@ -88,10 +91,14 @@ public class FrmReportes extends JInternalFrame {
                 BorderFactory.createLineBorder(Tema.BORDE),
                 BorderFactory.createEmptyBorder(8, 10, 8, 10)));
 
-        JButton btnFaltantes = UiUtil.botonSecundario("Ver faltantes");
-        JButton btnSaldo = UiUtil.botonSecundario("Ver saldo");
-        JButton btnConsolidado = UiUtil.botonSecundario("Ver consolidado");
-        JButton btnAvance = UiUtil.botonSecundario("Ver avance");
+        JButton btnFaltantes = UiUtil.botonSecundario("Ver faltantes",
+                Iconos.accion(Iconos.Accion.VER, Tema.PRIMARIO));
+        JButton btnSaldo = UiUtil.botonSecundario("Ver saldo",
+                Iconos.accion(Iconos.Accion.VER, Tema.PRIMARIO));
+        JButton btnConsolidado = UiUtil.botonSecundario("Ver consolidado",
+                Iconos.accion(Iconos.Accion.VER, Tema.PRIMARIO));
+        JButton btnAvance = UiUtil.botonSecundario("Ver avance",
+                Iconos.accion(Iconos.Accion.VER, Tema.PRIMARIO));
 
         JPanel grupoFaltantes = grupo("Faltantes de recepción", btnFaltantes);
         JPanel grupoSaldo = grupo("Saldo del mercado", cmbPlantilla, btnSaldo);

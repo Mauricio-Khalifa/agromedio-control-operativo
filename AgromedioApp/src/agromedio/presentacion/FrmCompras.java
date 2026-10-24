@@ -25,6 +25,7 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
@@ -47,7 +48,8 @@ public class FrmCompras extends JInternalFrame {
     private final JTabbedPane pestanias = new JTabbedPane();
     private final JTable tablaConsolidado = new JTable(modeloConsolidado);
     private final JLabel lblConsolidado = UiUtil.subtitulo("");
-    private final JButton btnPreparar = UiUtil.botonPrimario("Preparar compra pendiente");
+    private final JButton btnPreparar = UiUtil.botonPrimario("Preparar compra pendiente",
+            Iconos.accion(Iconos.Accion.ABRIR, Color.WHITE));
 
     // Pestaña registro
     private final JComboBox<PlantillaOperativa> cmbPlantilla = new JComboBox<>();
@@ -96,7 +98,8 @@ public class FrmCompras extends JInternalFrame {
         txtFecha.setText(LocalDate.now().toString());
         txtFecha.setPreferredSize(new java.awt.Dimension(150, 34));
         norte.add(txtFecha);
-        JButton btnActualizar = UiUtil.botonSecundario("Actualizar consolidado");
+        JButton btnActualizar = UiUtil.botonSecundario("Actualizar consolidado",
+                Iconos.accion(Iconos.Accion.REFRESCAR, Tema.PRIMARIO));
         norte.add(btnActualizar);
         norte.add(btnPreparar);
         panel.add(norte, BorderLayout.NORTH);
@@ -170,7 +173,8 @@ public class FrmCompras extends JInternalFrame {
         g.gridx = 1; g.weightx = 1;
         form.add(txtCantidad, g);
 
-        JButton btnAgregar = UiUtil.botonSecundario("Agregar item");
+        JButton btnAgregar = UiUtil.botonSecundario("Agregar item",
+                Iconos.accion(Iconos.Accion.AGREGAR, Tema.PRIMARIO));
         JPanel sur = new JPanel(new BorderLayout());
         sur.setOpaque(false);
         sur.add(form, BorderLayout.CENTER);
@@ -185,8 +189,10 @@ public class FrmCompras extends JInternalFrame {
 
         JPanel botonesFinales = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 4));
         botonesFinales.setOpaque(false);
-        JButton btnQuitar = UiUtil.botonSecundario("Quitar item");
-        JButton btnGuardar = UiUtil.botonPrimario("Guardar compra");
+        JButton btnQuitar = UiUtil.botonSecundario("Quitar item",
+                Iconos.accion(Iconos.Accion.QUITAR, Tema.PRIMARIO));
+        JButton btnGuardar = UiUtil.botonPrimario("Guardar compra",
+                Iconos.accion(Iconos.Accion.GUARDAR, Color.WHITE));
         botonesFinales.add(btnQuitar);
         botonesFinales.add(btnGuardar);
 

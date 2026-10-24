@@ -21,6 +21,7 @@ import javax.swing.JTextField;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -65,9 +66,12 @@ public class FrmPlantillas extends JInternalFrame {
         scroll.setBorder(BorderFactory.createLineBorder(Tema.BORDE));
         add(scroll, BorderLayout.CENTER);
 
-        JButton btnNueva = UiUtil.botonPrimario("Nueva plantilla");
-        JButton btnDetalle = UiUtil.botonSecundario("Ver detalle");
-        JButton btnRefrescar = UiUtil.botonSecundario("Refrescar");
+        JButton btnNueva = UiUtil.botonPrimario("Nueva plantilla",
+                Iconos.accion(Iconos.Accion.NUEVO, Color.WHITE));
+        JButton btnDetalle = UiUtil.botonSecundario("Ver detalle",
+                Iconos.accion(Iconos.Accion.VER, Tema.PRIMARIO));
+        JButton btnRefrescar = UiUtil.botonSecundario("Refrescar",
+                Iconos.accion(Iconos.Accion.REFRESCAR, Tema.PRIMARIO));
         JPanel botones = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         botones.setOpaque(false);
         botones.setBorder(BorderFactory.createEmptyBorder(6, 10, 8, 10));

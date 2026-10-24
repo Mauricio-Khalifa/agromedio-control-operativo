@@ -24,6 +24,7 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -44,8 +45,10 @@ public class FrmDetallePlantilla extends JInternalFrame {
     private final JTable tablaSaldo;
     private final JComboBox<Producto> cmbProducto = new JComboBox<>();
     private final JTextField txtCantidad = UiUtil.campo();
-    private final JButton btnAgregar = UiUtil.botonPrimario("Agregar");
-    private final JButton btnQuitar = UiUtil.botonSecundario("Quitar");
+    private final JButton btnAgregar = UiUtil.botonPrimario("Agregar",
+            Iconos.accion(Iconos.Accion.AGREGAR, Color.WHITE));
+    private final JButton btnQuitar = UiUtil.botonSecundario("Quitar",
+            Iconos.accion(Iconos.Accion.QUITAR, Tema.PRIMARIO));
     private final JLabel lblEstado = new JLabel();
     private DetallePlantilla[] cache = new DetallePlantilla[0];
     private int idDetalleSel = 0;

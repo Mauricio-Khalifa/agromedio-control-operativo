@@ -17,6 +17,7 @@ import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -37,7 +38,8 @@ public class FrmRecepcion extends JInternalFrame {
 
     private final JComboBox<Compra> cmbCompra = new JComboBox<>();
     private final JTextField txtObservaciones = UiUtil.campo();
-    private final JButton btnRegistrar = UiUtil.botonPrimario("Registrar entrega");
+    private final JButton btnRegistrar = UiUtil.botonPrimario("Registrar entrega",
+            Iconos.accion(Iconos.Accion.GUARDAR, Color.WHITE));
     private final JLabel lblResumen = UiUtil.subtitulo("Seleccione una compra pendiente.");
 
     private final DefaultTableModel modeloDetalle;
@@ -84,8 +86,10 @@ public class FrmRecepcion extends JInternalFrame {
 
         add(crearNorte(), BorderLayout.NORTH);
 
-        JButton btnCerrar = UiUtil.botonSecundario("Cerrar recepción");
-        JButton btnRefrescar = UiUtil.botonSecundario("Refrescar");
+        JButton btnCerrar = UiUtil.botonSecundario("Cerrar recepción",
+                Iconos.accion(Iconos.Accion.CERRAR, Tema.PRIMARIO));
+        JButton btnRefrescar = UiUtil.botonSecundario("Refrescar",
+                Iconos.accion(Iconos.Accion.REFRESCAR, Tema.PRIMARIO));
         JPanel sur = new JPanel(new BorderLayout(8, 0));
         sur.setOpaque(false);
         sur.setBorder(BorderFactory.createEmptyBorder(4, 10, 8, 10));

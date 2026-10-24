@@ -20,6 +20,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
@@ -97,7 +98,8 @@ public class FrmAlistamiento extends JInternalFrame {
         cmbPlantilla.setPreferredSize(new java.awt.Dimension(380, 34));
         barra.add(cmbPlantilla, g);
         g.gridx = 2; g.weightx = 0; g.fill = GridBagConstraints.NONE;
-        JButton btnIniciar = UiUtil.botonSecundario("Iniciar alistamiento");
+        JButton btnIniciar = UiUtil.botonSecundario("Iniciar alistamiento",
+                Iconos.accion(Iconos.Accion.ABRIR, Tema.PRIMARIO));
         barra.add(btnIniciar, g);
         g.gridx = 3;
         lblEstado.setFont(Tema.PEQUENA.deriveFont(java.awt.Font.BOLD));
@@ -106,8 +108,10 @@ public class FrmAlistamiento extends JInternalFrame {
         norte.add(barra, BorderLayout.CENTER);
         add(norte, BorderLayout.NORTH);
 
-        JButton btnGuardar = UiUtil.botonPrimario("Guardar avance");
-        JButton btnCompletar = UiUtil.botonSecundario("Completar alistamiento");
+        JButton btnGuardar = UiUtil.botonPrimario("Guardar avance",
+                Iconos.accion(Iconos.Accion.GUARDAR, Color.WHITE));
+        JButton btnCompletar = UiUtil.botonSecundario("Completar alistamiento",
+                Iconos.accion(Iconos.Accion.COMPLETAR, Tema.PRIMARIO));
         JPanel sur = new JPanel(new BorderLayout(8, 0));
         sur.setOpaque(false);
         sur.setBorder(BorderFactory.createEmptyBorder(4, 10, 8, 10));

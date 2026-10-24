@@ -15,6 +15,7 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableRowSorter;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
@@ -99,9 +100,12 @@ public class FrmCatalogos extends JInternalFrame {
         g.fill = GridBagConstraints.BOTH;
         panelForm.add(relleno, g);
 
-        JButton btnNuevo = UiUtil.botonSecundario("Nuevo");
-        JButton btnGuardar = UiUtil.botonPrimario("Guardar");
-        JButton btnEliminar = UiUtil.botonPeligro("Eliminar");
+        JButton btnNuevo = UiUtil.botonSecundario("Nuevo",
+                Iconos.accion(Iconos.Accion.NUEVO, Tema.TEXTO_SUAVE));
+        JButton btnGuardar = UiUtil.botonPrimario("Guardar",
+                Iconos.accion(Iconos.Accion.GUARDAR, Color.WHITE));
+        JButton btnEliminar = UiUtil.botonPeligro("Eliminar",
+                Iconos.accion(Iconos.Accion.ELIMINAR, Color.WHITE));
         JPanel panelBotones = new JPanel(new GridLayout(0, 1, 0, 6));
         panelBotones.setOpaque(false);
         panelBotones.add(btnNuevo);

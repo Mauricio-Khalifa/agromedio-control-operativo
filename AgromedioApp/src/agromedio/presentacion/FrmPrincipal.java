@@ -5,6 +5,7 @@ import agromedio.datos.ConexionBD;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JDesktopPane;
 import javax.swing.JFrame;
@@ -47,6 +48,7 @@ public class FrmPrincipal extends JFrame {
     private final JLabel lblActividad = new JLabel("Listo");
     private final JLabel lblHora = new JLabel();
     private final Map<String, JButton> botonesMenu = new HashMap<>();
+    private final Map<String, Iconos.Tipo> tiposIcono = new HashMap<>();
     private String moduloActivo = "";
 
     public FrmPrincipal() {
@@ -142,32 +144,36 @@ public class FrmPrincipal extends JFrame {
         menu.setBorder(new EmptyBorder(12, 10, 12, 10));
 
         agregarGrupo(menu, "Operación");
-        menu.add(botonMenu("Carga de archivo", "carga", FrmCargaExcel::new));
-        menu.add(botonMenu("Plantillas", "plantillas", () -> {
+        menu.add(botonMenu("Carga de archivo", "carga", Iconos.Tipo.CARGA, FrmCargaExcel::new));
+        menu.add(botonMenu("Plantillas", "plantillas", Iconos.Tipo.PLANTILLAS, () -> {
             FrmPlantillas frame = new FrmPlantillas();
             frame.setNavegador(navegador);
             return frame;
         }));
-        menu.add(botonMenu("Compras", "compras", FrmCompras::new));
-        menu.add(botonMenu("Recepción", "recepcion", FrmRecepcion::new));
-        menu.add(botonMenu("Alistamiento", "alistamiento", FrmAlistamiento::new));
-        menu.add(botonMenu("Despacho", "despacho", FrmDespacho::new));
+        menu.add(botonMenu("Compras", "compras", Iconos.Tipo.COMPRAS, FrmCompras::new));
+        menu.add(botonMenu("Recepción", "recepcion", Iconos.Tipo.RECEPCION, FrmRecepcion::new));
+        menu.add(botonMenu("Alistamiento", "alistamiento", Iconos.Tipo.ALISTAMIENTO, FrmAlistamiento::new));
+        menu.add(botonMenu("Despacho", "despacho", Iconos.Tipo.DESPACHO, FrmDespacho::new));
 
         menu.add(Box.createVerticalStrut(4));
         menu.add(new JSeparator(SwingConstants.HORIZONTAL));
         menu.add(Box.createVerticalStrut(4));
         agregarGrupo(menu, "Catálogos");
-        menu.add(botonMenu("Productos", "productos", FrmProductos::new));
-        menu.add(botonMenu("Clientes", "cat-clientes", () -> new FrmCatalogos(new CatalogoClientes())));
-        menu.add(botonMenu("Categorías", "cat-categorias", () -> new FrmCatalogos(new CatalogoCategorias())));
-        menu.add(botonMenu("Unidades", "cat-unidades", () -> new FrmCatalogos(new CatalogoUnidades())));
-        menu.add(botonMenu("Proveedores", "cat-proveedores", () -> new FrmCatalogos(new CatalogoProveedores())));
+        menu.add(botonMenu("Productos", "productos", Iconos.Tipo.PRODUCTOS, FrmProductos::new));
+        menu.add(botonMenu("Clientes", "cat-clientes", Iconos.Tipo.CLIENTES,
+                () -> new FrmCatalogos(new CatalogoClientes())));
+        menu.add(botonMenu("Categorías", "cat-categorias", Iconos.Tipo.CATEGORIAS,
+                () -> new FrmCatalogos(new CatalogoCategorias())));
+        menu.add(botonMenu("Unidades", "cat-unidades", Iconos.Tipo.UNIDADES,
+                () -> new FrmCatalogos(new CatalogoUnidades())));
+        menu.add(botonMenu("Proveedores", "cat-proveedores", Iconos.Tipo.PROVEEDORES,
+                () -> new FrmCatalogos(new CatalogoProveedores())));
 
         menu.add(Box.createVerticalStrut(4));
         menu.add(new JSeparator(SwingConstants.HORIZONTAL));
         menu.add(Box.createVerticalStrut(4));
         agregarGrupo(menu, "Análisis");
-        menu.add(botonMenu("Reportes", "reportes", FrmReportes::new));
+        menu.add(botonMenu("Reportes", "reportes", Iconos.Tipo.REPORTES, FrmReportes::new));
         menu.add(Box.createVerticalGlue());
 
         JScrollPane scroll = new JScrollPane(menu);
@@ -193,8 +199,11 @@ public class FrmPrincipal extends JFrame {
         menu.add(grupo);
     }
 
-    private JButton botonMenu(String texto, String clave, Supplier<? extends javax.swing.JInternalFrame> fabrica) {
+    private JButton botonMenu(String texto, String clave, Iconos.Tipo tipoIcono,
+                              Supplier<? extends javax.swing.JInternalFrame> fabrica) {
         JButton boton = new JButton(texto);
+        boton.setIcon(Iconos.icono(tipoIcono, Tema.SIDEBAR_TEXTO));
+        boton.setIconTextGap(10);
         boton.setFont(Tema.BASE);
         boton.setForeground(Tema.SIDEBAR_TEXTO);
         boton.setBackground(Tema.SIDEBAR);
@@ -218,6 +227,7 @@ public class FrmPrincipal extends JFrame {
             }
         });
         botonesMenu.put(clave, boton);
+        tiposIcono.put(clave, tipoIcono);
         return boton;
     }
 
@@ -227,6 +237,8 @@ public class FrmPrincipal extends JFrame {
             JButton boton = entrada.getValue();
             boolean activo = entrada.getKey().equals(clave);
             boton.setBackground(activo ? Tema.SIDEBAR_HOVER : Tema.SIDEBAR);
+            boton.setIcon(Iconos.icono(tiposIcono.get(entrada.getKey()),
+                    activo ? Tema.ACENTO_CLARO : Tema.SIDEBAR_TEXTO));
             boton.setFont(activo ? Tema.BASE_NEGRITA : Tema.BASE);
             boton.setBorder(activo
                     ? BorderFactory.createCompoundBorder(
