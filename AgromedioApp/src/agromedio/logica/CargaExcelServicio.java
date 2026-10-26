@@ -4,6 +4,7 @@ import agromedio.datos.CargaPlantillaDAO;
 import agromedio.datos.CargaPlantillaDAOSqlite;
 import agromedio.datos.ClienteDAO;
 import agromedio.datos.ClienteDAOSqlite;
+import agromedio.datos.ConexionBD;
 import agromedio.datos.PlantillaDAO;
 import agromedio.datos.PlantillaDAOSqlite;
 import agromedio.datos.ProductoDAO;
@@ -87,6 +88,17 @@ public class CargaExcelServicio {
 
         String hash = hashSha256(archivo);
         CargaPlantilla previa = cargaDAO.buscarPorHash(hash);
+        if (previa != null) {
+            final int idCargaPrevia = previa.getIdCarga();
+            // Si todas las plantillas de esa carga fueron eliminadas, el registro
+            // es huerfano: se limpia y se permite recargar el archivo.
+            boolean quedanPlantillas = plantillaDAO.listar().stream()
+                    .anyMatch(p -> p.getIdCarga() == idCargaPrevia);
+            if (!quedanPlantillas) {
+                cargaDAO.eliminar(idCargaPrevia);
+                previa = null;
+            }
+        }
         if (previa != null) {
             res.setDuplicada(true);
             res.getErrores().add("Carga ya realizada: el archivo '" + archivo.getName()
@@ -263,41 +275,55 @@ public class CargaExcelServicio {
             plantilla.setIdCliente(cliente.getIdCliente());
         }
 
+        // C-2: si el producto ya esta en la plantilla del archivo, se acumula la
+        // cantidad en una sola linea (evita detalle duplicado que infla el saldo).
+        List<DetallePlantilla> listaDetalle = detalles.get(clavePlantilla);
+        for (DetallePlantilla existente : listaDetalle) {
+            if (existente.getIdProducto() == producto.getIdProducto()) {
+                double acumulado = existente.getCantidadSolicitada() + cantidad.valor;
+                existente.setCantidadSolicitada(Math.round(acumulado * 1000.0) / 1000.0);
+                return;
+            }
+        }
         DetallePlantilla det = new DetallePlantilla();
         det.setIdProducto(producto.getIdProducto());
         det.setCantidadSolicitada(cantidad.valor);
-        detalles.get(clavePlantilla).add(det);
+        listaDetalle.add(det);
     }
 
     /** Persiste la carga y sus plantillas (RF02 / G05). */
     private void persistir(File archivo, String hash, ResultadoCarga res,
                            Map<String, PlantillaOperativa> plantillas,
                            Map<String, List<DetallePlantilla>> detalles) {
-        if (!plantillas.isEmpty()) {
-            int totalProductos = detalles.values().stream().mapToInt(List::size).sum();
-            CargaPlantilla carga = new CargaPlantilla();
-            carga.setNombreArchivo(archivo.getName());
-            carga.setHashArchivo(hash);
-            carga.setUsuario(System.getProperty("user.name", "OPERADOR"));
-            carga.setPlantillasCreadas(plantillas.size());
-            carga.setProductosRegistrados(totalProductos);
-            int idCarga = cargaDAO.guardar(carga);
-            res.setIdCarga(idCarga);
-            for (PlantillaOperativa p : plantillas.values()) {
-                p.setIdCarga(idCarga);
+        // C-3: el registro de auditoria (G05), las plantillas y su detalle se
+        // guardan en una sola transaccion; si algo falla no queda carga parcial.
+        ConexionBD.enTransaccion(() -> {
+            if (!plantillas.isEmpty()) {
+                int totalProductos = detalles.values().stream().mapToInt(List::size).sum();
+                CargaPlantilla carga = new CargaPlantilla();
+                carga.setNombreArchivo(archivo.getName());
+                carga.setHashArchivo(hash);
+                carga.setUsuario(System.getProperty("user.name", "OPERADOR"));
+                carga.setPlantillasCreadas(plantillas.size());
+                carga.setProductosRegistrados(totalProductos);
+                int idCarga = cargaDAO.guardar(carga);
+                res.setIdCarga(idCarga);
+                for (PlantillaOperativa p : plantillas.values()) {
+                    p.setIdCarga(idCarga);
+                }
             }
-        }
 
-        for (Map.Entry<String, PlantillaOperativa> e : plantillas.entrySet()) {
-            PlantillaOperativa p = e.getValue();
-            plantillaDAO.guardar(p);
-            plantillasCreadas(res);
-            for (DetallePlantilla d : detalles.get(e.getKey())) {
-                d.setIdPlantilla(p.getIdPlantilla());
-                plantillaDAO.agregarDetalle(d);
-                res.setProductosRegistrados(res.getProductosRegistrados() + 1);
+            for (Map.Entry<String, PlantillaOperativa> e : plantillas.entrySet()) {
+                PlantillaOperativa p = e.getValue();
+                plantillaDAO.guardar(p);
+                plantillasCreadas(res);
+                for (DetallePlantilla d : detalles.get(e.getKey())) {
+                    d.setIdPlantilla(p.getIdPlantilla());
+                    plantillaDAO.agregarDetalle(d);
+                    res.setProductosRegistrados(res.getProductosRegistrados() + 1);
+                }
             }
-        }
+        });
     }
 
     private static boolean esArchivoPlano(File archivo) {

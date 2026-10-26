@@ -354,7 +354,8 @@ public final class UiUtil {
             return switch (estado) {
                 case "CARGADA", "BORRADOR" -> Tema.TEXTO_SUAVE;
                 case "EN_COMPRA", "COMPRADA" -> Tema.ADVERTENCIA;
-                case "RECIBIDA", "ALISTADA" -> Tema.INFO;
+                case "RECIBIENDO", "RECIBIDA", "ALISTADA" -> Tema.INFO;
+                case "ALISTANDO", "LISTA" -> Tema.ACENTO;
                 case "DESPACHADA", "CERRADA", "CONFIRMADA" -> Tema.EXITO;
                 case "ANULADA" -> Tema.PELIGRO;
                 default -> Tema.TEXTO;

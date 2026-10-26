@@ -75,6 +75,18 @@ public class CargaPlantillaDAOSqlite implements CargaPlantillaDAO {
     }
 
     @Override
+    public void eliminar(int idCarga) {
+        String sql = "DELETE FROM carga_plantilla WHERE id_carga = ?";
+        try (Connection c = ConexionBD.obtener();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, idCarga);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException("Error al eliminar la carga: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
     public void actualizarResumen(int idCarga, int plantillasCreadas, int productosRegistrados) {
         String sql = "UPDATE carga_plantilla SET plantillas_creadas = ?, productos_registrados = ? "
                 + "WHERE id_carga = ?";

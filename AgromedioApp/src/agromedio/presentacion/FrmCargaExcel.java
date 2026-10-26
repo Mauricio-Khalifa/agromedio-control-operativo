@@ -161,7 +161,10 @@ public class FrmCargaExcel extends JInternalFrame {
                     }
                 } finally {
                     btnSeleccionar.setEnabled(true);
-                    btnCargar.setEnabled(archivoSeleccionado != null);
+                    // El boton de carga queda deshabilitado tras procesar; solo se
+                    // reactiva cuando se selecciona un archivo nuevo.
+                    btnCargar.setEnabled(false);
+                    archivoSeleccionado = null;
                     progreso.setIndeterminate(false);
                 }
             }

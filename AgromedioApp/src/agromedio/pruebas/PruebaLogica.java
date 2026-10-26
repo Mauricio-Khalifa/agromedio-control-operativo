@@ -6,6 +6,7 @@ import agromedio.logica.CargaExcelServicio;
 import agromedio.logica.CompraServicio;
 import agromedio.logica.DespachoServicio;
 import agromedio.logica.PlantillaServicio;
+import agromedio.logica.ProgresoServicio;
 import agromedio.logica.RecepcionServicio;
 import agromedio.logica.ResultadoCarga;
 import agromedio.modelo.Alistamiento;
@@ -16,8 +17,10 @@ import agromedio.modelo.DetallePlantilla;
 import agromedio.modelo.DetalleRecepcion;
 import agromedio.modelo.Despacho;
 import agromedio.modelo.FilaConsolidado;
+import agromedio.modelo.FilaProgreso;
 import agromedio.modelo.PlantillaOperativa;
 import agromedio.modelo.Producto;
+import agromedio.datos.ConsultaDAOSqlite;
 import agromedio.datos.PlantillaDAOSqlite;
 import agromedio.datos.ProductoDAO;
 import agromedio.datos.ProductoDAOSqlite;
@@ -53,6 +56,7 @@ public class PruebaLogica {
         RecepcionServicio recepciones = new RecepcionServicio();
         AlistamientoServicio alistamientos = new AlistamientoServicio();
         DespachoServicio despachos = new DespachoServicio();
+        ProgresoServicio progresoServicio = new ProgresoServicio();
         ProductoDAO productos = new ProductoDAOSqlite();
 
         // ---------------- RF01 - RF02: carga de archivo .xlsx ----------------
@@ -308,6 +312,17 @@ public class PruebaLogica {
         });
 
         // ---------------- RF07 - RF08: alistamiento ----------------
+        verificar("Panel: conserva plantilla abierta sin depender de la fecha", () -> {
+            List<FilaProgreso> abiertas = progresoServicio.procesosAbiertos();
+            FilaProgreso fila = abiertas.stream()
+                    .filter(f -> f.getIdPlantilla() == idPlantilla[0])
+                    .findFirst().orElse(null);
+            return fila != null
+                    && PlantillaOperativa.ESTADO_ALISTANDO.equals(fila.getEstado())
+                    && fila.getPorcentajeCompra() == 100.0
+                    && fila.getPorcentajeRecepcion() == 100.0;
+        });
+
         verificar("RF07: el alistamiento copia los productos de la plantilla", () -> {
             Alistamiento a = alistamientos.iniciar(idPlantilla[0]);
             return alistamientos.detalle(a.getIdAlistamiento()).size() == 2;
@@ -578,6 +593,95 @@ public class PruebaLogica {
                 PlantillaOperativa p = plantillas.obtener(id);
                 return e.getMessage().contains("al menos un producto")
                         && compras.comprasDe(id).isEmpty()
+                        && PlantillaOperativa.ESTADO_CARGADA.equals(p.getEstado());
+            }
+        });
+
+        // ---------------- C-1 / C-2 / C-3: defectos criticos corregidos ----------------
+        verificar("C-1: completar() no revierte una plantilla DESPACHADA", () -> {
+            int id = crearMercadoListo(plantillas, compras, recepciones, alistamientos,
+                    "Mercado C1 logica", 50, 77, 70);
+            Despacho d = despachos.iniciar(id);
+            DetalleDespacho dd = despachos.detalle(d.getIdDespacho()).get(0);
+            dd.setCantidadDespachada(70);
+            dd.setVerificado(true);
+            dd.setFaltanteAceptado(true);
+            despachos.marcarItem(dd);
+            despachos.cerrar(d.getIdDespacho(), id, "Faltante aceptado");
+            try {
+                alistamientos.completar(alistamientos.actual(id).getIdAlistamiento(), id);
+            } catch (IllegalStateException ignore) {
+                // bloqueo esperado
+            }
+            PlantillaOperativa p = new agromedio.datos.PlantillaDAOSqlite().obtener(id);
+            return PlantillaOperativa.ESTADO_DESPACHADA.equals(p.getEstado());
+        });
+
+        verificar("C-2: registrarCompra rechaza producto duplicado", () -> {
+            int id = plantillas.crear(1, "Mercado C2 logica",
+                    java.time.LocalDate.now().plusDays(51).toString());
+            Producto leche = productos.buscarPorNombre("Leche entera pasteurizada");
+            plantillas.agregarProducto(id, leche.getIdProducto(), 30);
+            List<DetalleCompra> items = new ArrayList<>();
+            items.add(detalleCompra(id, leche, 1, 20));
+            items.add(detalleCompra(id, leche, 2, 10));
+            try {
+                compras.registrarCompra(id, null, items);
+                return false;
+            } catch (IllegalArgumentException e) {
+                return e.getMessage().contains("repetido");
+            }
+        });
+
+        verificar("H-04: registrarCompra bloquea una plantilla ALISTANDO", () -> {
+            PlantillaServicio ps = new PlantillaServicio();
+            int id = ps.crear(1, "Mercado H04 logica",
+                    java.time.LocalDate.now().plusDays(53).toString());
+            Producto leche = productos.buscarPorNombre("Leche entera pasteurizada");
+            ps.agregarProducto(id, leche.getIdProducto(), 40);
+            compras.registrarCompra(id, null, List.of(detalleCompra(id, leche, 1, 40)));
+            int idCompra = compras.comprasDe(id).get(0).getIdCompra();
+            recepciones.registrarRecepcion(idCompra, null, "r", List.of(40.0));
+            recepciones.cerrarRecepcion(idCompra);
+            Producto azucar = productos.buscarPorNombre("Azucar blanca");
+            try {
+                compras.registrarCompra(id, null, List.of(detalleCompra(id, azucar, 1, 5)));
+                return false;
+            } catch (IllegalStateException e) {
+                return e.getMessage().contains("avanzo");
+            }
+        });
+
+        verificar("H-03: registrarRecepcion rechaza compra ANULADA", () -> {
+            PlantillaServicio ps = new PlantillaServicio();
+            int id = ps.crear(1, "Mercado H03 logica",
+                    java.time.LocalDate.now().plusDays(54).toString());
+            Producto leche = productos.buscarPorNombre("Leche entera pasteurizada");
+            ps.agregarProducto(id, leche.getIdProducto(), 20);
+            compras.registrarCompra(id, null, List.of(detalleCompra(id, leche, 1, 20)));
+            int idCompra = compras.comprasDe(id).get(0).getIdCompra();
+            new agromedio.datos.CompraDAOSqlite().actualizarEstado(idCompra, agromedio.modelo.Compra.ANULADA);
+            try {
+                recepciones.registrarRecepcion(idCompra, null, "sobre anulada", List.of(20.0));
+                return false;
+            } catch (IllegalStateException e) {
+                return e.getMessage().contains("anulada");
+            }
+        });
+
+        verificar("C-3: registrarCompra con proveedor inexistente no deja compra huerfana", () -> {
+            int id = plantillas.crear(1, "Mercado C3 logica",
+                    java.time.LocalDate.now().plusDays(52).toString());
+            Producto leche = productos.buscarPorNombre("Leche entera pasteurizada");
+            plantillas.agregarProducto(id, leche.getIdProducto(), 10);
+            List<DetalleCompra> items = new ArrayList<>();
+            items.add(detalleCompra(id, leche, 9999, 10));
+            try {
+                compras.registrarCompra(id, null, items);
+                return false;
+            } catch (RuntimeException e) {
+                PlantillaOperativa p = plantillas.obtener(id);
+                return compras.comprasDe(id).isEmpty()
                         && PlantillaOperativa.ESTADO_CARGADA.equals(p.getEstado());
             }
         });

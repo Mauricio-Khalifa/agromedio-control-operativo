@@ -1,5 +1,6 @@
 package agromedio.logica;
 
+import agromedio.datos.ConexionBD;
 import agromedio.datos.DespachoDAO;
 import agromedio.datos.DespachoDAOSqlite;
 import agromedio.datos.PlantillaDAO;
@@ -48,26 +49,29 @@ public class DespachoServicio {
         d.setIdPlantilla(idPlantilla);
         d.setFechaDespacho(LocalDate.now().toString());
         d.setEstado(Despacho.EN_VERIFICACION);
-        despachoDAO.guardar(d);
 
-        for (DetallePlantilla dp : plantillaDAO.listarDetalle(idPlantilla)) {
-            DetalleDespacho dd = new DetalleDespacho();
-            dd.setIdDespacho(d.getIdDespacho());
-            dd.setIdProducto(dp.getIdProducto());
-            dd.setCantidadDespachada(dp.getCantidadSolicitada());
-            dd.setVerificado(false);
-            dd.setFaltanteAceptado(false);
-            despachoDAO.agregarDetalle(dd);
-        }
-        // La cantidad inicial es lo realmente alistado; si hay faltante,
-        // el operador debe aceptarlo explicitamente antes de cerrar.
-        for (DetalleDespacho dd : despachoDAO.listarDetalle(d.getIdDespacho())) {
-            double disponible = disponible(dd);
-            if (disponible + EPS < dd.getCantidadDespachada()) {
-                dd.setCantidadDespachada(disponible);
-                despachoDAO.actualizarDetalle(dd);
+        // C-3: creacion del despacho y su lista de chequeo en una sola transaccion.
+        ConexionBD.enTransaccion(() -> {
+            despachoDAO.guardar(d);
+            for (DetallePlantilla dp : plantillaDAO.listarDetalle(idPlantilla)) {
+                DetalleDespacho dd = new DetalleDespacho();
+                dd.setIdDespacho(d.getIdDespacho());
+                dd.setIdProducto(dp.getIdProducto());
+                dd.setCantidadDespachada(dp.getCantidadSolicitada());
+                dd.setVerificado(false);
+                dd.setFaltanteAceptado(false);
+                despachoDAO.agregarDetalle(dd);
             }
-        }
+            // La cantidad inicial es lo realmente alistado; si hay faltante,
+            // el operador debe aceptarlo explicitamente antes de cerrar.
+            for (DetalleDespacho dd : despachoDAO.listarDetalle(d.getIdDespacho())) {
+                double disponible = disponible(dd);
+                if (disponible + EPS < dd.getCantidadDespachada()) {
+                    dd.setCantidadDespachada(disponible);
+                    despachoDAO.actualizarDetalle(dd);
+                }
+            }
+        });
         return d;
     }
 
@@ -88,6 +92,11 @@ public class DespachoServicio {
         DetalleDespacho oficial = buscarDetalle(detalle.getIdDespacho(), detalle.getIdDetalleDespacho());
         if (oficial == null) {
             throw new IllegalArgumentException("El producto no pertenece al despacho indicado.");
+        }
+        // H-2: un despacho cerrado es inmutable.
+        Despacho encabezado = despachoDAO.obtener(detalle.getIdDespacho());
+        if (encabezado != null && Despacho.DESPACHADA.equals(encabezado.getEstado())) {
+            throw new IllegalStateException("El despacho ya esta cerrado; no admite cambios.");
         }
         double solicitado = oficial.getCantidadSolicitada();
         double disponible = disponible(oficial);
@@ -121,6 +130,14 @@ public class DespachoServicio {
      * @return lista de productos pendientes por verificar (vacia si se pudo cerrar).
      */
     public List<DetalleDespacho> cerrar(int idDespacho, int idPlantilla, String novedades) {
+        // H-2/H-6: solo se cierra una vez; evita sobrescribir novedades.
+        Despacho encabezado = despachoDAO.obtener(idDespacho);
+        if (encabezado == null) {
+            throw new IllegalArgumentException("El despacho no existe.");
+        }
+        if (!Despacho.EN_VERIFICACION.equals(encabezado.getEstado())) {
+            throw new IllegalStateException("El despacho ya esta cerrado; no admite un nuevo cierre.");
+        }
         List<DetalleDespacho> detalles = despachoDAO.listarDetalle(idDespacho);
         if (detalles.isEmpty()) {
             throw new IllegalStateException("El despacho no tiene productos.");
@@ -164,8 +181,11 @@ public class DespachoServicio {
         if (conFaltanteAceptado && (textoNovedades == null || textoNovedades.isEmpty())) {
             throw new IllegalArgumentException("Debe registrar una novedad para el faltante aceptado.");
         }
-        despachoDAO.actualizarEstado(idDespacho, Despacho.DESPACHADA, textoNovedades);
-        plantillaDAO.actualizarEstado(idPlantilla, PlantillaOperativa.ESTADO_DESPACHADA);
+        // C-3: cierre del despacho y avance de la plantilla de forma atomica.
+        ConexionBD.enTransaccion(() -> {
+            despachoDAO.actualizarEstado(idDespacho, Despacho.DESPACHADA, textoNovedades);
+            plantillaDAO.actualizarEstado(idPlantilla, PlantillaOperativa.ESTADO_DESPACHADA);
+        });
         return List.of();
     }
 

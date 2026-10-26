@@ -30,6 +30,26 @@ public class DespachoDAOSqlite implements DespachoDAO {
     }
 
     @Override
+    public Despacho obtener(int idDespacho) {
+        String sql = "SELECT d.id_despacho, d.id_plantilla, d.fecha_despacho, d.estado, d.novedades, p.nombre_mercado "
+                + "FROM despacho d JOIN plantilla_operativa p ON p.id_plantilla = d.id_plantilla "
+                + "WHERE d.id_despacho = ?";
+        try (Connection c = ConexionBD.obtener(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, idDespacho);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Despacho d = new Despacho(rs.getInt(1), rs.getInt(2), rs.getString(3), rs.getString(4), rs.getString(5));
+                    d.setNombreMercado(rs.getString(6));
+                    return d;
+                }
+                return null;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error al consultar despacho: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
     public int guardar(Despacho d) {
         String sql = "INSERT INTO despacho (id_plantilla, fecha_despacho, estado, novedades) VALUES (?, ?, ?, ?)";
         try (Connection c = ConexionBD.obtener();

@@ -9,6 +9,7 @@ import agromedio.presentacion.FrmDespacho;
 import agromedio.presentacion.FrmDetallePlantilla;
 import agromedio.presentacion.FrmProductos;
 import agromedio.presentacion.FrmPlantillas;
+import agromedio.presentacion.FrmProgreso;
 import agromedio.presentacion.FrmRecepcion;
 import agromedio.presentacion.FrmReportes;
 import agromedio.presentacion.CatalogoCategorias;
@@ -50,6 +51,7 @@ public class PruebaVistas {
                 FrmProductos::new,
                 FrmPlantillas::new,
                 () -> new FrmDetallePlantilla(1),
+                FrmProgreso::new,
                 FrmCargaExcel::new,
                 FrmCompras::new,
                 FrmRecepcion::new,
@@ -58,8 +60,8 @@ public class PruebaVistas {
                 FrmReportes::new
         );
 
-        List<String> nombres = List.of("Catalogo clientes", "Catalogo categorias", "Catalogo unidades",
-                "Catalogo proveedores", "Productos", "Plantillas", "Detalle plantilla", "Carga de archivos",
+        List<String> nombres = List.of(                "Catalogo clientes", "Catalogo categorias", "Catalogo unidades",
+                "Catalogo proveedores", "Productos", "Plantillas", "Detalle plantilla", "Progreso", "Carga de archivos",
                 "Compras", "Recepcion", "Alistamiento", "Despacho", "Reportes");
 
         for (int i = 0; i < fabricas.size(); i++) {

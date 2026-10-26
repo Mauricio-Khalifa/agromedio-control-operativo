@@ -2,6 +2,8 @@ package agromedio.datos;
 
 import agromedio.modelo.FilaAvance;
 import agromedio.modelo.FilaConsolidado;
+import agromedio.modelo.FilaProgreso;
+import agromedio.modelo.ResumenProgreso;
 import agromedio.modelo.FilaFaltante;
 import agromedio.modelo.FilaSaldo;
 
@@ -14,4 +16,6 @@ public interface ConsultaDAO {
     List<FilaFaltante> faltantesRecepcion();
     List<FilaConsolidado> consolidarDemanda(String fechaProgramada);
     List<FilaAvance> avanceDespacho();
+    List<FilaProgreso> progresoAbierto();
+    ResumenProgreso resumenProgreso();
 }

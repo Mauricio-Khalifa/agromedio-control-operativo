@@ -7,4 +7,5 @@ public interface CargaPlantillaDAO {
     CargaPlantilla obtener(int idCarga);
     int guardar(CargaPlantilla carga);
     void actualizarResumen(int idCarga, int plantillasCreadas, int productosRegistrados);
+    void eliminar(int idCarga);
 }

@@ -15,8 +15,12 @@ import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableColumn;
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
@@ -44,6 +48,7 @@ public class FrmRecepcion extends JInternalFrame {
 
     private final DefaultTableModel modeloDetalle;
     private final DefaultTableModel modeloHistorial;
+    private JTable tablaDetalle;
 
     public FrmRecepcion() {
         super("Recepción de mercancía", true, true, true, true);
@@ -65,11 +70,44 @@ public class FrmRecepcion extends JInternalFrame {
             }
         };
         modeloHistorial = UiUtil.modelo(
-                new Object[]{"Entrega", "Fecha", "Observaciones"}, false);
+                new Object[]{"Entrega", "Fecha", "Producto", "Cantidad recibida", "Observaciones"}, false);
 
-        JTable tablaDetalle = new JTable(modeloDetalle);
+        tablaDetalle = new JTable(modeloDetalle);
         UiUtil.prepararTabla(tablaDetalle);
+        // Habilita el boton "Registrar entrega" mientras se escribe (sin esperar Enter).
+        JTextField editorCantidad = new JTextField();
+        TableColumn colRecibir = tablaDetalle.getColumnModel().getColumn(COL_RECIBIR);
+        colRecibir.setCellEditor(new javax.swing.DefaultCellEditor(editorCantidad));
+        colRecibir.setPreferredWidth(150);
+        colRecibir.setMinWidth(100);
+        editorCantidad.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) { actualizarResumen(); }
+            @Override
+            public void removeUpdate(DocumentEvent e) { actualizarResumen(); }
+            @Override
+            public void changedUpdate(DocumentEvent e) { actualizarResumen(); }
+        });
         tablaDetalle.setToolTipText("Escriba solo las cantidades que llegan en esta entrega. El faltante es el máximo permitido.");
+        // Permite iniciar la edicion con un solo clic (mas evidente para el usuario).
+        // Permite iniciar la edicion con un solo clic (mas evidente para el usuario).
+        tablaDetalle.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent e) {
+                int fila = tablaDetalle.rowAtPoint(e.getPoint());
+                int columna = tablaDetalle.columnAtPoint(e.getPoint());
+                if (fila >= 0 && columna == COL_RECIBIR
+                        && tablaDetalle.isCellEditable(fila, columna)
+                        && !tablaDetalle.isEditing()) {
+                    tablaDetalle.editCellAt(fila, columna);
+                    Component editor = tablaDetalle.getEditorComponent();
+                    if (editor != null) {
+                        editor.requestFocusInWindow();
+                    }
+                }
+            }
+        });
+        tablaDetalle.setSurrendersFocusOnKeystroke(true);
         JScrollPane scrollDetalle = new JScrollPane(tablaDetalle);
         scrollDetalle.setBorder(BorderFactory.createLineBorder(Tema.BORDE));
 
@@ -99,7 +137,12 @@ public class FrmRecepcion extends JInternalFrame {
         acciones.add(btnCerrar);
         acciones.add(btnRefrescar);
         sur.add(acciones, BorderLayout.WEST);
-        sur.add(lblResumen, BorderLayout.EAST);
+        JLabel ayuda = UiUtil.subtitulo("Haga clic en 'Recibir ahora' para ingresar la cantidad recibida de cada producto.");
+        JPanel este = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        este.setOpaque(false);
+        este.add(ayuda);
+        este.add(lblResumen);
+        sur.add(este, BorderLayout.EAST);
         add(sur, BorderLayout.SOUTH);
 
         cmbCompra.addActionListener(e -> seleccionarCompra());
@@ -185,8 +228,16 @@ public class FrmRecepcion extends JInternalFrame {
 
         List<Recepcion> previas = servicio.recepcionesDe(compra.getIdCompra());
         for (Recepcion r : previas) {
-            modeloHistorial.addRow(new Object[]{r.getIdRecepcion(), r.getFechaRecepcion(),
-                    r.getObservaciones()});
+            List<DetalleRecepcion> detalleEntrega = servicio.detalle(r.getIdRecepcion());
+            if (detalleEntrega.isEmpty()) {
+                modeloHistorial.addRow(new Object[]{r.getIdRecepcion(), r.getFechaRecepcion(),
+                        "-", 0.0, r.getObservaciones()});
+            } else {
+                for (DetalleRecepcion dr : detalleEntrega) {
+                    modeloHistorial.addRow(new Object[]{r.getIdRecepcion(), r.getFechaRecepcion(),
+                            dr.getNombreProducto(), dr.getCantidadRecibida(), r.getObservaciones()});
+                }
+            }
         }
         txtObservaciones.setText("");
         actualizarResumen();
@@ -201,7 +252,16 @@ public class FrmRecepcion extends JInternalFrame {
             if (faltante instanceof Number n && n.doubleValue() > 0) {
                 pendientes++;
             }
-            if (valor(modeloDetalle.getValueAt(i, COL_RECIBIR)) > 0) {
+            double cantidadFila = valor(modeloDetalle.getValueAt(i, COL_RECIBIR));
+            if (tablaDetalle != null && tablaDetalle.isEditing()
+                    && tablaDetalle.getEditingRow() == i
+                    && tablaDetalle.getEditingColumn() == COL_RECIBIR) {
+                Component editor = tablaDetalle.getEditorComponent();
+                if (editor instanceof JTextField tf) {
+                    cantidadFila = valor(tf.getText());
+                }
+            }
+            if (cantidadFila > 0) {
                 conCantidad++;
             }
         }
@@ -209,11 +269,25 @@ public class FrmRecepcion extends JInternalFrame {
                 ? "Seleccione una compra con detalle."
                 : lineas + " líneas  |  " + pendientes + " con faltante  |  "
                 + conCantidad + " por registrar");
-        btnRegistrar.setEnabled(lineas > 0 && conCantidad > 0);
+        // El boton se mantiene habilitado mientras haya lineas para que el clic
+        // pueda confirmar la edicion en curso; la validacion real ocurre en registrar().
+        btnRegistrar.setEnabled(lineas > 0);
+        // Permite confirmar la edicion en curso con un solo clic en el boton.
+        btnRegistrar.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mousePressed(java.awt.event.MouseEvent e) {
+                if (tablaDetalle.isEditing()) {
+                    tablaDetalle.getCellEditor().stopCellEditing();
+                }
+            }
+        });
     }
 
     private void registrar() {
         try {
+            if (tablaDetalle.isEditing() && tablaDetalle.getCellEditor() != null) {
+                tablaDetalle.getCellEditor().stopCellEditing();
+            }
             Compra compra = (Compra) cmbCompra.getSelectedItem();
             if (compra == null) {
                 throw new IllegalArgumentException("Seleccione una compra pendiente.");

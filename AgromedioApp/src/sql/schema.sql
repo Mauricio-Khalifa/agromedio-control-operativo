@@ -319,6 +319,7 @@ LEFT JOIN (
     FROM compra c
     JOIN detalle_compra dc ON dc.id_compra = c.id_compra
     JOIN producto pr2      ON pr2.id_producto = dc.id_producto
+    WHERE c.estado <> 'ANULADA'
     GROUP BY c.id_plantilla, dc.id_producto
 ) c ON c.id_plantilla = pl.id_plantilla AND c.id_producto = det.id_producto
 LEFT JOIN (
@@ -328,6 +329,7 @@ LEFT JOIN (
     JOIN detalle_compra dc     ON dc.id_compra = c.id_compra
     JOIN detalle_recepcion dr  ON dr.id_detalle_compra = dc.id_detalle_compra
     JOIN producto pr2          ON pr2.id_producto = dc.id_producto
+    WHERE c.estado <> 'ANULADA'
     GROUP BY c.id_plantilla, dc.id_producto
 ) r ON r.id_plantilla = pl.id_plantilla AND r.id_producto = det.id_producto
 LEFT JOIN (

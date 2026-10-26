@@ -72,21 +72,30 @@ public class FrmPlantillas extends JInternalFrame {
                 Iconos.accion(Iconos.Accion.VER, Tema.PRIMARIO));
         JButton btnRefrescar = UiUtil.botonSecundario("Refrescar",
                 Iconos.accion(Iconos.Accion.REFRESCAR, Tema.PRIMARIO));
+        JButton btnEliminar = UiUtil.botonPeligro("Eliminar plantilla",
+                Iconos.accion(Iconos.Accion.QUITAR, Color.WHITE));
+        btnEliminar.setEnabled(false);
         JPanel botones = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         botones.setOpaque(false);
         botones.setBorder(BorderFactory.createEmptyBorder(6, 10, 8, 10));
         botones.add(btnNueva);
         botones.add(btnDetalle);
         botones.add(btnRefrescar);
+        botones.add(btnEliminar);
         botones.add(lblResumen);
         add(botones, BorderLayout.SOUTH);
 
         btnNueva.addActionListener(e -> nuevaPlantilla());
         btnDetalle.addActionListener(e -> abrirDetalle());
         btnRefrescar.addActionListener(e -> refrescar());
+        btnEliminar.addActionListener(e -> eliminarPlantilla());
         tabla.getSelectionModel().addListSelectionListener((ListSelectionEvent e) -> {
             if (!cargando && tabla.getSelectedRow() >= 0) {
                 idSeleccionado = cache.get(tabla.getSelectedRow()).getIdPlantilla();
+                btnEliminar.setEnabled(idSeleccionado > 0);
+            } else {
+                idSeleccionado = 0;
+                btnEliminar.setEnabled(false);
             }
         });
         tabla.addMouseListener(new java.awt.event.MouseAdapter() {
@@ -158,6 +167,33 @@ public class FrmPlantillas extends JInternalFrame {
             navegador.abrir("detalle-plantilla-" + id, () -> new FrmDetallePlantilla(id));
         } else if (getDesktopPane() != null) {
             getDesktopPane().add(new FrmDetallePlantilla(id));
+        }
+    }
+
+    private void eliminarPlantilla() {
+        if (idSeleccionado <= 0) {
+            UiUtil.error(this, "Seleccione una plantilla de la tabla.");
+            return;
+        }
+        PlantillaOperativa p = plantillaDAO.obtener(idSeleccionado);
+        if (p == null) {
+            UiUtil.error(this, "La plantilla seleccionada no existe.");
+            return;
+        }
+        boolean confirmar = UiUtil.confirmar(this,
+                "¿Eliminar la plantilla '" + p.getNombreMercado() + "' (#" + p.getIdPlantilla() + ")?\n\n"
+                        + "Solo se pueden eliminar plantillas en estado CARGADA sin historico "
+                        + "(sin compras, recepciones, alistamientos ni despachos).");
+        if (!confirmar) {
+            return;
+        }
+        try {
+            servicio.eliminar(idSeleccionado);
+            UiUtil.mensaje(this, "Plantilla eliminada correctamente.");
+            idSeleccionado = 0;
+            refrescar();
+        } catch (Exception ex) {
+            UiUtil.error(this, ex);
         }
     }
 

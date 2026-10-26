@@ -7,6 +7,7 @@ import java.util.List;
 
 public interface DespachoDAO {
     Despacho obtenerPorPlantilla(int idPlantilla);
+    Despacho obtener(int idDespacho);
     int guardar(Despacho despacho);
     void actualizarEstado(int idDespacho, String estado, String novedades);
 

@@ -24,6 +24,20 @@ public class AlistamientoDAOSqlite implements AlistamientoDAO {
     }
 
     @Override
+    public Alistamiento obtener(int idAlistamiento) {
+        String sql = "SELECT id_alistamiento, id_plantilla, fecha_alistamiento, estado FROM alistamiento "
+                + "WHERE id_alistamiento = ?";
+        try (Connection c = ConexionBD.obtener(); PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setInt(1, idAlistamiento);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? new Alistamiento(rs.getInt(1), rs.getInt(2), rs.getString(3), rs.getString(4)) : null;
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error al consultar alistamiento: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
     public int guardar(Alistamiento a) {
         String sql = "INSERT INTO alistamiento (id_plantilla, fecha_alistamiento, estado) VALUES (?, ?, ?)";
         try (Connection c = ConexionBD.obtener();

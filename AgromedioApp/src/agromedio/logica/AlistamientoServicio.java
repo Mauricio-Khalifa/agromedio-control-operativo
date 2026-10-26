@@ -2,6 +2,7 @@ package agromedio.logica;
 
 import agromedio.datos.AlistamientoDAO;
 import agromedio.datos.AlistamientoDAOSqlite;
+import agromedio.datos.ConexionBD;
 import agromedio.datos.PlantillaDAO;
 import agromedio.datos.PlantillaDAOSqlite;
 import agromedio.modelo.Alistamiento;
@@ -52,18 +53,19 @@ public class AlistamientoServicio {
         a.setIdPlantilla(idPlantilla);
         a.setFechaAlistamiento(LocalDate.now().toString());
         a.setEstado(Alistamiento.EN_PROCESO);
-        alistamientoDAO.guardar(a);
-
-        for (DetallePlantilla dp : plantillaDAO.listarDetalle(idPlantilla)) {
-            DetalleAlistamiento da = new DetalleAlistamiento();
-            da.setIdAlistamiento(a.getIdAlistamiento());
-            da.setIdProducto(dp.getIdProducto());
-            da.setCantidadAlistada(0);
-            da.setCompletado(false);
-            alistamientoDAO.agregarDetalle(da);
-        }
-        plantillaDAO.actualizarEstado(idPlantilla, PlantillaOperativa.ESTADO_ALISTANDO);
-        return a;
+        return ConexionBD.enTransaccion(() -> {
+            alistamientoDAO.guardar(a);
+            for (DetallePlantilla dp : plantillaDAO.listarDetalle(idPlantilla)) {
+                DetalleAlistamiento da = new DetalleAlistamiento();
+                da.setIdAlistamiento(a.getIdAlistamiento());
+                da.setIdProducto(dp.getIdProducto());
+                da.setCantidadAlistada(0);
+                da.setCompletado(false);
+                alistamientoDAO.agregarDetalle(da);
+            }
+            plantillaDAO.actualizarEstado(idPlantilla, PlantillaOperativa.ESTADO_ALISTANDO);
+            return a;
+        });
     }
 
     /**
@@ -74,6 +76,11 @@ public class AlistamientoServicio {
     public void registrarAvance(int idAlistamiento, DetalleAlistamiento detalle) {
         if (detalle == null) {
             throw new IllegalArgumentException("Seleccione el producto a actualizar.");
+        }
+        // H-2: un alistamiento completado es inmutable.
+        Alistamiento encabezado = alistamientoDAO.obtener(idAlistamiento);
+        if (encabezado != null && Alistamiento.COMPLETO.equals(encabezado.getEstado())) {
+            throw new IllegalStateException("El alistamiento ya esta completo; no admite cambios.");
         }
         if (detalle.getCantidadAlistada() < 0) {
             throw new IllegalArgumentException("La cantidad alistada no puede ser negativa.");
@@ -117,6 +124,19 @@ public class AlistamientoServicio {
      * la plantilla a estado LISTA.
      */
     public boolean completar(int idAlistamiento, int idPlantilla) {
+        // C-1: no se puede completar el alistamiento si la plantilla ya avanzo
+        // a un estado terminal o no esta en produccion. Evita revertir una
+        // plantilla DESPACHADA a LISTA (y habilitar un re-despacho).
+        PlantillaOperativa plantilla = plantillaDAO.obtener(idPlantilla);
+        if (plantilla == null) {
+            throw new IllegalArgumentException("La plantilla no existe.");
+        }
+        if (!PlantillaOperativa.ESTADO_ALISTANDO.equals(plantilla.getEstado())
+                && !PlantillaOperativa.ESTADO_LISTA.equals(plantilla.getEstado())) {
+            throw new IllegalStateException("No se puede completar el alistamiento: la plantilla esta en estado "
+                    + plantilla.getEstado() + ".");
+        }
+
         List<DetalleAlistamiento> detalles = alistamientoDAO.listarDetalle(idAlistamiento);
         if (detalles.isEmpty()) {
             throw new IllegalStateException("El alistamiento no tiene productos.");
@@ -152,8 +172,10 @@ public class AlistamientoServicio {
                         + " tiene alistado mas de lo disponible.");
             }
         }
-        alistamientoDAO.actualizarEstado(idAlistamiento, Alistamiento.COMPLETO);
-        plantillaDAO.actualizarEstado(idPlantilla, PlantillaOperativa.ESTADO_LISTA);
+        ConexionBD.enTransaccion(() -> {
+            alistamientoDAO.actualizarEstado(idAlistamiento, Alistamiento.COMPLETO);
+            plantillaDAO.actualizarEstado(idPlantilla, PlantillaOperativa.ESTADO_LISTA);
+        });
         return true;
     }
 

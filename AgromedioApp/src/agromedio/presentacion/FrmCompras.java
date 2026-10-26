@@ -116,8 +116,18 @@ public class FrmCompras extends JInternalFrame {
         pie.add(lblConsolidado, BorderLayout.EAST);
         panel.add(pie, BorderLayout.SOUTH);
 
-        btnActualizar.addActionListener(e -> consolidar());
+        btnActualizar.addActionListener(e -> {
+            cargarPlantillas();
+            consolidar();
+        });
         btnPreparar.addActionListener(e -> prepararCompra());
+        // Refresca las plantillas al entrar a la pestaña de registro (RF04):
+        // permite ver las plantillas cargadas despues de abrir la ventana.
+        pestanias.addChangeListener(e -> {
+            if (pestanias.getSelectedIndex() == 1) {
+                cargarPlantillas();
+            }
+        });
         btnPreparar.setEnabled(false);
         tablaConsolidado.getSelectionModel().addListSelectionListener(e -> actualizarBotonPreparar());
         tablaConsolidado.addMouseListener(new java.awt.event.MouseAdapter() {
@@ -288,7 +298,11 @@ public class FrmCompras extends JInternalFrame {
             }
             lblConsolidado.setText(consolidado.size() + " producto(s) en el consolidado");
             if (consolidado.isEmpty()) {
-                modeloConsolidado.addRow(new Object[]{"(sin demanda para la fecha)", "", "", "", "", ""});
+                modeloConsolidado.addRow(new Object[]{"(sin demanda para la fecha indicada)", "", "", "", "", ""});
+                UiUtil.mensaje(this, "No hay plantillas activas con demanda para la fecha "
+                        + txtFecha.getText().trim() + ".\\n"
+                        + "Verifique la fecha (debe coincidir con la fecha programada de la plantilla) "
+                        + "o cargue una plantilla con esa fecha.");
             }
             tablaConsolidado.clearSelection();
             actualizarBotonPreparar();

@@ -38,7 +38,8 @@ public final class Iconos {
         CATEGORIAS,
         UNIDADES,
         PROVEEDORES,
-        REPORTES
+        REPORTES,
+        PROGRESO
     }
 
     public enum Accion implements Definicion {
@@ -132,6 +133,7 @@ public final class Iconos {
                     case UNIDADES -> dibujarUnidades(g);
                     case PROVEEDORES -> dibujarProveedores(g);
                     case REPORTES -> dibujarReportes(g);
+                    case PROGRESO -> dibujarProgreso(g);
                 }
             } else if (tipo instanceof Accion accion) {
                 switch (accion) {
@@ -294,6 +296,14 @@ public final class Iconos {
             g.draw(new Line2D.Double(8, 9, 8, 11));
             g.draw(new Line2D.Double(12, 9, 12, 11));
             g.draw(new Line2D.Double(8, 14, 12, 14));
+        }
+
+        private static void dibujarProgreso(Graphics2D g) {
+            g.draw(new Line2D.Double(3, 17.5, 17.5, 17.5));
+            g.draw(new Line2D.Double(3, 17.5, 3, 3));
+            g.draw(new Line2D.Double(5.5, 14, 8, 11.5));
+            g.draw(new Line2D.Double(8, 11.5, 11, 13));
+            g.draw(new Line2D.Double(11, 13, 16.5, 6));
         }
 
         private static void dibujarReportes(Graphics2D g) {

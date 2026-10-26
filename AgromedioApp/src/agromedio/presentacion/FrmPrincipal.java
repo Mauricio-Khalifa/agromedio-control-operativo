@@ -143,6 +143,15 @@ public class FrmPrincipal extends JFrame {
         menu.setBackground(Tema.SIDEBAR);
         menu.setBorder(new EmptyBorder(12, 10, 12, 10));
 
+        agregarGrupo(menu, "Resumen");
+        menu.add(botonMenu("Procesos abiertos", "progreso", Iconos.Tipo.PROGRESO, () -> {
+            FrmProgreso frame = new FrmProgreso();
+            return frame;
+        }));
+
+        menu.add(Box.createVerticalStrut(4));
+        menu.add(new JSeparator(SwingConstants.HORIZONTAL));
+        menu.add(Box.createVerticalStrut(4));
         agregarGrupo(menu, "Operación");
         menu.add(botonMenu("Carga de archivo", "carga", Iconos.Tipo.CARGA, FrmCargaExcel::new));
         menu.add(botonMenu("Plantillas", "plantillas", Iconos.Tipo.PLANTILLAS, () -> {
@@ -294,6 +303,9 @@ public class FrmPrincipal extends JFrame {
     private JMenuBar crearMenu() {
         JMenuBar barra = new JMenuBar();
 
+        JMenu mResumen = new JMenu("Resumen");
+        mResumen.add(item("Procesos abiertos", e -> abrirModulo("progreso", FrmProgreso::new)));
+
         JMenu mOperacion = new JMenu("Operación");
         mOperacion.add(item("Plantillas operativas", e -> abrirModulo("plantillas", () -> {
             FrmPlantillas frame = new FrmPlantillas();
@@ -335,6 +347,7 @@ public class FrmPrincipal extends JFrame {
                         + "Base de datos: SQLite (" + ConexionBD.rutaBD() + ")\n"
                         + "Modo de operación: operador único, sin autenticación en esta versión.")));
 
+        barra.add(mResumen);
         barra.add(mOperacion);
         barra.add(mCatalogos);
         barra.add(mConsultas);

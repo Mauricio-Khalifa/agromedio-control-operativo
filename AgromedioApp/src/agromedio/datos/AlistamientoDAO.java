@@ -7,6 +7,7 @@ import java.util.List;
 
 public interface AlistamientoDAO {
     Alistamiento obtenerPorPlantilla(int idPlantilla);
+    Alistamiento obtener(int idAlistamiento);
     int guardar(Alistamiento alistamiento);
     void actualizarEstado(int idAlistamiento, String estado);
 

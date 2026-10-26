@@ -84,6 +84,21 @@
             </classpath>
             <jvmarg value="-Dagromedio.db=build/prueba_logica.db"/>
         </java>
+        <java classname="agromedio.pruebas.PruebaEscenarios" fork="true" failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <path refid="classpath"/>
+            </classpath>
+            <jvmarg value="-Dagromedio.db=build/prueba_escenarios.db"/>
+        </java>
+        <java classname="agromedio.pruebas.PruebaFlujosUI" fork="true" failonerror="true">
+            <classpath>
+                <pathelement location="${build.classes.dir}"/>
+                <path refid="classpath"/>
+            </classpath>
+            <jvmarg value="-Dfile.encoding=UTF-8"/>
+            <jvmarg value="-Dagromedio.db=build/prueba_ui.db"/>
+        </java>
     </target>
 
     <target name="pruebas-vistas" depends="compile"

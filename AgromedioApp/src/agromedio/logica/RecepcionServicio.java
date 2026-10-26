@@ -2,6 +2,7 @@ package agromedio.logica;
 
 import agromedio.datos.CompraDAO;
 import agromedio.datos.CompraDAOSqlite;
+import agromedio.datos.ConexionBD;
 import agromedio.datos.PlantillaDAO;
 import agromedio.datos.PlantillaDAOSqlite;
 import agromedio.datos.RecepcionDAO;
@@ -57,6 +58,10 @@ public class RecepcionServicio {
         if (Compra.RECIBIDA.equals(compra.getEstado())) {
             throw new IllegalStateException("La compra ya fue cerrada; no admite nuevas recepciones.");
         }
+        // H-03: una compra anulada no puede recibirse.
+        if (Compra.ANULADA.equals(compra.getEstado())) {
+            throw new IllegalStateException("La compra esta anulada; no admite recepcion.");
+        }
         List<DetalleCompra> detalles = compraDAO.listarDetalle(idCompra);
         if (cantidadesRecibidas == null || cantidadesRecibidas.size() != detalles.size()) {
             throw new IllegalArgumentException("Debe indicar la cantidad recibida de cada producto.");
@@ -93,26 +98,29 @@ public class RecepcionServicio {
         recepcion.setIdCompra(idCompra);
         recepcion.setFechaRecepcion(fecha == null || fecha.isEmpty() ? LocalDate.now().toString() : fecha);
         recepcion.setObservaciones(observaciones);
-        recepcionDAO.guardar(recepcion);
 
-        for (int i = 0; i < detalles.size(); i++) {
-            double recibida = cantidadesRecibidas.get(i) == null ? 0 : cantidadesRecibidas.get(i);
-            if (recibida <= 0) {
-                continue;   // D02: el cero no se persiste
+        // C-3: cabecera de recepcion + detalle + estado de la plantilla atómicos.
+        ConexionBD.enTransaccion(() -> {
+            recepcionDAO.guardar(recepcion);
+            for (int i = 0; i < detalles.size(); i++) {
+                double recibida = cantidadesRecibidas.get(i) == null ? 0 : cantidadesRecibidas.get(i);
+                if (recibida <= 0) {
+                    continue;   // D02: el cero no se persiste
+                }
+                DetalleRecepcion dr = new DetalleRecepcion();
+                dr.setIdRecepcion(recepcion.getIdRecepcion());
+                dr.setIdDetalleCompra(detalles.get(i).getIdDetalleCompra());
+                dr.setCantidadRecibida(recibida);
+                recepcionDAO.agregarDetalle(dr);
             }
-            DetalleRecepcion dr = new DetalleRecepcion();
-            dr.setIdRecepcion(recepcion.getIdRecepcion());
-            dr.setIdDetalleCompra(detalles.get(i).getIdDetalleCompra());
-            dr.setCantidadRecibida(recibida);
-            recepcionDAO.agregarDetalle(dr);
-        }
 
-        PlantillaOperativa plantilla = plantillaDAO.obtener(compra.getIdPlantilla());
-        if (plantilla != null && (PlantillaOperativa.ESTADO_EN_COMPRA.equals(plantilla.getEstado())
-                || PlantillaOperativa.ESTADO_CARGADA.equals(plantilla.getEstado())
-                || PlantillaOperativa.ESTADO_RECIBIENDO.equals(plantilla.getEstado()))) {
-            plantillaDAO.actualizarEstado(plantilla.getIdPlantilla(), PlantillaOperativa.ESTADO_RECIBIENDO);
-        }
+            PlantillaOperativa plantilla = plantillaDAO.obtener(compra.getIdPlantilla());
+            if (plantilla != null && (PlantillaOperativa.ESTADO_EN_COMPRA.equals(plantilla.getEstado())
+                    || PlantillaOperativa.ESTADO_CARGADA.equals(plantilla.getEstado())
+                    || PlantillaOperativa.ESTADO_RECIBIENDO.equals(plantilla.getEstado()))) {
+                plantillaDAO.actualizarEstado(plantilla.getIdPlantilla(), PlantillaOperativa.ESTADO_RECIBIENDO);
+            }
+        });
         return faltantesPendientes(idCompra);
     }
 
@@ -138,12 +146,18 @@ public class RecepcionServicio {
         if (compra == null) {
             throw new IllegalArgumentException("La compra no existe.");
         }
+        if (Compra.ANULADA.equals(compra.getEstado())) {
+            throw new IllegalStateException("La compra esta anulada; no se puede cerrar la recepcion.");
+        }
         List<Recepcion> recepciones = recepcionDAO.listarPorCompra(idCompra);
         if (recepciones.isEmpty()) {
             throw new IllegalStateException("Primero debe registrar la entrada de mercancia.");
         }
-        compraDAO.actualizarEstado(idCompra, Compra.RECIBIDA);
-        plantillaDAO.actualizarEstado(compra.getIdPlantilla(), PlantillaOperativa.ESTADO_ALISTANDO);
+        // C-3: cierre de la compra y avance de la plantilla de forma atomica.
+        ConexionBD.enTransaccion(() -> {
+            compraDAO.actualizarEstado(idCompra, Compra.RECIBIDA);
+            plantillaDAO.actualizarEstado(compra.getIdPlantilla(), PlantillaOperativa.ESTADO_ALISTANDO);
+        });
     }
 
     public List<Recepcion> recepcionesDe(int idCompra) {

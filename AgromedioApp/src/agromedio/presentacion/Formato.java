@@ -2,6 +2,7 @@ package agromedio.presentacion;
 
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+import java.text.ParseException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -52,11 +53,19 @@ public final class Formato {
         if (texto == null || texto.isBlank()) {
             return 0.0;
         }
-        String limpio = texto.trim();
-        if (limpio.contains(",")) {
-            limpio = limpio.replace(".", "").replace(',', '.');
+        // M-3: parseo inverse de numero() usando los mismos simbolos (es-CO),
+        // de modo que "1.000" se lea como 1000 y no como 1,0.
+        try {
+            DecimalFormat df = new DecimalFormat("#,##0.##", DecimalFormatSymbols.getInstance(COLOMBIA));
+            df.setParseBigDecimal(true);
+            return df.parse(texto.trim()).doubleValue();
+        } catch (ParseException e) {
+            String limpio = texto.trim();
+            if (limpio.contains(",")) {
+                limpio = limpio.replace(".", "").replace(',', '.');
+            }
+            return Double.parseDouble(limpio);
         }
-        return Double.parseDouble(limpio);
     }
 
     public static String estado(String codigo) {
@@ -66,6 +75,9 @@ public final class Formato {
         return switch (codigo.trim().toUpperCase(Locale.ROOT)) {
             case "CARGADA" -> "Cargada";
             case "EN_COMPRA" -> "En compra";
+            case "RECIBIENDO" -> "Recibiendo";
+            case "ALISTANDO" -> "Alistando";
+            case "LISTA" -> "Lista";
             case "COMPRADA" -> "Comprada";
             case "RECIBIDA" -> "Recibida";
             case "ALISTADA" -> "Alistada";
