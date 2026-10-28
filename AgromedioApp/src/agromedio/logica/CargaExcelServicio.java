@@ -29,6 +29,7 @@ import java.security.MessageDigest;
 import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -50,7 +51,9 @@ public class CargaExcelServicio {
     private static final DateTimeFormatter[] FORMATOS_FECHA = {
             DateTimeFormatter.ofPattern("yyyy-MM-dd"),
             DateTimeFormatter.ofPattern("dd/MM/yyyy"),
-            DateTimeFormatter.ISO_LOCAL_DATE
+            DateTimeFormatter.ISO_LOCAL_DATE,
+            new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("d-MMM-yyyy").toFormatter(new Locale("es")),
+            new DateTimeFormatterBuilder().parseCaseInsensitive().appendPattern("d-MMM-yyyy").toFormatter(Locale.ENGLISH)
     };
 
     /** Acepta cantidades numericas o descriptivas: "9 unidades", "1 de 300 gr", "400 gramos". */
@@ -109,7 +112,7 @@ public class CargaExcelServicio {
 
         Map<String, Producto> productos = new HashMap<>();
         for (Producto p : productoDAO.listar()) {
-            productos.put(clave(p.getNombre()), p);
+            productos.put(claveProducto(p.getNombre()), p);
         }
         Map<String, Cliente> clientes = new HashMap<>();
         for (Cliente cl : clienteDAO.listar()) {
@@ -143,8 +146,8 @@ public class CargaExcelServicio {
                 return;
             }
             String encabezado = textoCelda(hoja.getRow(0).getCell(0)).toLowerCase(Locale.ROOT);
-            String encabezadoProducto = hoja.getRow(0).getCell(5) == null ? ""
-                    : textoCelda(hoja.getRow(0).getCell(5)).toLowerCase(Locale.ROOT);
+            String encabezadoProducto = hoja.getRow(0).getCell(6) == null ? ""
+                    : textoCelda(hoja.getRow(0).getCell(6)).toLowerCase(Locale.ROOT);
             if (!encabezado.contains("cliente") || !encabezadoProducto.contains("producto")) {
                 res.getErrores().add(mensajeFormato());
                 return;
@@ -164,6 +167,8 @@ public class CargaExcelServicio {
                         textoCelda(fila.getCell(4)).trim(),
                         textoCelda(fila.getCell(5)).trim(),
                         textoCelda(fila.getCell(6)).trim(),
+                         textoCelda(fila.getCell(7)).trim(),
+                         textoCelda(fila.getCell(8)).trim(),
                         productos, clientes, plantillas, detalles);
             }
         }
@@ -194,7 +199,7 @@ public class CargaExcelServicio {
         String[] encabezado = filas.get(0);
         if (encabezado.length < 7
                 || !valor(encabezado, 0).toLowerCase(Locale.ROOT).contains("cliente")
-                || !valor(encabezado, 5).toLowerCase(Locale.ROOT).contains("producto")) {
+                || !valor(encabezado, 6).toLowerCase(Locale.ROOT).contains("producto")) {
             res.getErrores().add(mensajeFormato());
             return;
         }
@@ -204,7 +209,7 @@ public class CargaExcelServicio {
             res.setLineasLeidas(res.getLineasLeidas() + 1);
             procesarFila(res, i + 1,
                     valor(fila, 0), valor(fila, 1), valor(fila, 2), valor(fila, 3),
-                    valor(fila, 4), valor(fila, 5), valor(fila, 6),
+                    valor(fila, 4), valor(fila, 5), valor(fila, 6), valor(fila, 7), valor(fila, 8),
                     productos, clientes, plantillas, detalles);
         }
     }
@@ -212,8 +217,8 @@ public class CargaExcelServicio {
     /** Valida una fila y la agrega al agrupamiento por mercado/fecha. */
     private void procesarFila(ResultadoCarga res, int linea,
                               String nombreCliente, String contacto, String telefono,
-                              String mercado, String textoFecha, String nombreProducto,
-                              String textoCantidad, Map<String, Producto> productos,
+                              String mercado, String textoMercados, String textoFecha, String nombreProducto,
+                              String textoCantidad, String unidadSolicitada, Map<String, Producto> productos,
                               Map<String, Cliente> clientes,
                               Map<String, PlantillaOperativa> plantillas,
                               Map<String, List<DetallePlantilla>> detalles) {
@@ -221,15 +226,28 @@ public class CargaExcelServicio {
         contacto = contacto.trim();
         telefono = telefono.trim();
         mercado = mercado.trim();
+        textoMercados = textoMercados.trim();
         textoFecha = textoFecha.trim();
         nombreProducto = nombreProducto.trim();
+        unidadSolicitada = unidadSolicitada == null ? "" : unidadSolicitada.trim();
 
         if (nombreCliente.isEmpty() || mercado.isEmpty() || nombreProducto.isEmpty() || textoFecha.isEmpty()) {
             res.getErrores().add("Linea " + linea + ": faltan datos obligatorios (cliente, mercado, fecha o producto).");
             return;
         }
 
-        CantidadArchivo cantidad = interpretarCantidad(textoCantidad, nombreProducto);
+        int cantidadMercados;
+        try {
+            cantidadMercados = Integer.parseInt(textoMercados);
+        } catch (NumberFormatException e) {
+            res.getErrores().add("Linea " + linea + ": Cant. Mercados debe ser un entero mayor que cero.");
+            return;
+        }
+        if (cantidadMercados <= 0) {
+            res.getErrores().add("Linea " + linea + ": Cant. Mercados debe ser mayor que cero.");
+            return;
+        }
+        CantidadArchivo cantidad = interpretarCantidadNueva(textoCantidad, unidadSolicitada, nombreProducto);
         if (cantidad == null) {
             res.getErrores().add("Linea " + linea + ": cantidad invalida '" + textoCantidad.trim()
                     + "' (use un numero o un texto como '9 unidades', '1 de 300 gr' o '400 gramos').");
@@ -247,12 +265,12 @@ public class CargaExcelServicio {
                     + "' (use aaaa-mm-dd o dd/mm/aaaa).");
             return;
         }
-        Producto producto = productos.get(clave(nombreProducto));
+        Producto producto = productos.get(claveProducto(nombreProducto));
         if (producto == null) {
             producto = new Producto(0, nombreProducto, categoriaPara(nombreProducto),
                     cantidad.idUnidad, cantidad.idUnidad, 1.0);
             productoDAO.guardar(producto);
-            productos.put(clave(nombreProducto), producto);
+            productos.put(claveProducto(nombreProducto), producto);
             res.setProductosCreados(res.getProductosCreados() + 1);
         }
 
@@ -263,6 +281,7 @@ public class CargaExcelServicio {
             plantilla.setNombreMercado(mercado);
             plantilla.setFechaProgramada(fecha.toString());
             plantilla.setEstado(PlantillaOperativa.ESTADO_CARGADA);
+            plantilla.setCantidadMercados(cantidadMercados);
             plantillas.put(clavePlantilla, plantilla);
             detalles.put(clavePlantilla, new ArrayList<>());
 
@@ -280,14 +299,14 @@ public class CargaExcelServicio {
         List<DetallePlantilla> listaDetalle = detalles.get(clavePlantilla);
         for (DetallePlantilla existente : listaDetalle) {
             if (existente.getIdProducto() == producto.getIdProducto()) {
-                double acumulado = existente.getCantidadSolicitada() + cantidad.valor;
-                existente.setCantidadSolicitada(Math.round(acumulado * 1000.0) / 1000.0);
+                // Una fila repetida no se suma: el archivo debe contener una sola
+                // solicitud por producto y presentación.
                 return;
             }
         }
         DetallePlantilla det = new DetallePlantilla();
         det.setIdProducto(producto.getIdProducto());
-        det.setCantidadSolicitada(cantidad.valor);
+        det.setCantidadSolicitada(Math.round(cantidad.valor * cantidadMercados * 1000.0) / 1000.0);
         listaDetalle.add(det);
     }
 
@@ -344,6 +363,22 @@ public class CargaExcelServicio {
      * de la plantilla administrativa: "9 unidades", "1 de 300 gr",
      * "2 de 1000 ml", "1 libra", "0.25 libra" o "400 gramos".
      */
+    private static CantidadArchivo interpretarCantidadNueva(String texto, String unidad, String nombreProducto) {
+        String u = normalizar(unidad);
+        String canon = u.equals("libras") || u.equals("lb") ? "libra" :
+                u.equals("gramos") || u.equals("gramo") || u.equals("gr") ? "gr" :
+                u.equals("mililitros") || u.equals("mililitro") || u.equals("ml") ? "ml" :
+                u.equals("unidades") || u.equals("unidad") || u.equals("und") ? "unidad" : u;
+        if (canon.isEmpty()) return interpretarCantidad(texto, nombreProducto);
+        double valor;
+        try { valor = Double.parseDouble(texto.trim().replace(',', '.')); }
+        catch (NumberFormatException e) { return null; }
+        String presentacion = nombreProducto + " (" + texto.trim() + " " + canon + ")";
+        int idUnidad = canon.equals("gr") ? 9 : canon.equals("ml") ? 10 :
+                canon.equals("libra") ? 3 : canon.equals("unidad") ? 6 : 6;
+        return new CantidadArchivo(valor, idUnidad, presentacion);
+    }
+
     private static CantidadArchivo interpretarCantidad(String texto, String nombreProducto) {
         if (texto == null) {
             return null;
@@ -436,6 +471,10 @@ public class CargaExcelServicio {
     }
 
     private static String clave(String texto) {
+        return normalizar(texto);
+    }
+
+    private static String claveProducto(String texto) {
         return normalizar(texto);
     }
 

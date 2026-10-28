@@ -617,7 +617,7 @@ public class PruebaLogica {
             return PlantillaOperativa.ESTADO_DESPACHADA.equals(p.getEstado());
         });
 
-        verificar("C-2: registrarCompra rechaza producto duplicado", () -> {
+        verificar("C-2: registrarCompra rechaza el mismo registro de producto repetido", () -> {
             int id = plantillas.crear(1, "Mercado C2 logica",
                     java.time.LocalDate.now().plusDays(51).toString());
             Producto leche = productos.buscarPorNombre("Leche entera pasteurizada");

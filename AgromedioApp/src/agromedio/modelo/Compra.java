@@ -9,6 +9,10 @@ public class Compra {
     private int idPlantilla;
     private String fechaCompra;
     private String estado;
+    private double costoTotal;
+    private String observaciones;
+    private int idProveedor;
+    private String nombreProveedor;
 
     // Campos de presentacion
     private String nombreMercado;
@@ -30,6 +34,14 @@ public class Compra {
     public void setFechaCompra(String fechaCompra) { this.fechaCompra = fechaCompra; }
     public String getEstado() { return estado; }
     public void setEstado(String estado) { this.estado = estado; }
+    public double getCostoTotal() { return costoTotal; }
+    public void setCostoTotal(double costoTotal) { this.costoTotal = costoTotal; }
+    public String getObservaciones() { return observaciones; }
+    public void setObservaciones(String observaciones) { this.observaciones = observaciones; }
+    public int getIdProveedor() { return idProveedor; }
+    public void setIdProveedor(int idProveedor) { this.idProveedor = idProveedor; }
+    public String getNombreProveedor() { return nombreProveedor; }
+    public void setNombreProveedor(String nombreProveedor) { this.nombreProveedor = nombreProveedor; }
     public String getNombreMercado() { return nombreMercado; }
     public void setNombreMercado(String nombreMercado) { this.nombreMercado = nombreMercado; }
 

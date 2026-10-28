@@ -17,4 +17,7 @@ public interface CompraDAO {
     List<DetalleCompra> listarDetallePorPlantilla(int idPlantilla);
     int agregarDetalle(DetalleCompra detalle);
     void eliminarDetalle(int idDetalleCompra);
+
+    List<agromedio.modelo.DistribucionCompra> listarDistribucionPorCompra(int idCompra);
+    int agregarDistribucion(agromedio.modelo.DistribucionCompra distribucion);
 }

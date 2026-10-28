@@ -13,6 +13,7 @@ import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSeparator;
@@ -338,6 +339,9 @@ public class FrmPrincipal extends JFrame {
         mVentana.add(item("Cerrar ventana activa", e -> navegador.cerrarActiva()));
         mVentana.add(item("Cerrar todas las ventanas", e -> navegador.cerrarTodo()));
 
+        JMenu mPruebas = new JMenu("Pruebas");
+        mPruebas.add(item("Limpiar datos operativos", e -> limpiarDatosParaPruebas()));
+
         JMenu mAyuda = new JMenu("Ayuda");
         mAyuda.add(item("Acerca del sistema", e -> UiUtil.mensaje(this,
                 "Sistema de Control Operativo Agromedio\n"
@@ -352,6 +356,7 @@ public class FrmPrincipal extends JFrame {
         barra.add(mCatalogos);
         barra.add(mConsultas);
         barra.add(mVentana);
+        barra.add(mPruebas);
         barra.add(mAyuda);
         return barra;
     }
@@ -366,6 +371,21 @@ public class FrmPrincipal extends JFrame {
     private void abrirModulo(String clave, Supplier<? extends javax.swing.JInternalFrame> fabrica) {
         marcarActivo(clave);
         navegador.abrir(clave, fabrica);
+    }
+
+    private void limpiarDatosParaPruebas() {
+        int opcion = JOptionPane.showConfirmDialog(this,
+                "Se eliminarán plantillas, compras, recepciones, alistamientos, despachos y cargas.\n"
+                        + "Los catálogos se conservarán.\n\n¿Desea continuar?",
+                "Limpiar datos operativos", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (opcion != JOptionPane.YES_OPTION) return;
+        try {
+            ConexionBD.limpiarDatosOperativos();
+            navegador.cerrarTodo();
+            UiUtil.mensaje(this, "Datos operativos eliminados. Los catálogos se conservaron.");
+        } catch (Exception ex) {
+            UiUtil.error(this, ex);
+        }
     }
 
     private void actualizarHora() {

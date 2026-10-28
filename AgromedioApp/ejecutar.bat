@@ -7,7 +7,7 @@ cd /d "%~dp0"
 
 if not exist "dist\AgromedioApp.jar" (
     echo No se encontro dist\AgromedioApp.jar
-    echo Ejecute primero: "C:\Program Files\NetBeans-21\netbeans\extide\ant\bin\ant.bat" jar
+    echo Ejecute primero: "C:\Program Files\Apache NetBeans\extide\ant\bin\ant.bat" jar
     pause
     exit /b 1
 )

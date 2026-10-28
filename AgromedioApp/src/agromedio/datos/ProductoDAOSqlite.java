@@ -43,6 +43,36 @@ public class ProductoDAOSqlite implements ProductoDAO {
     }
 
     @Override
+    public List<Producto> buscar(String texto) {
+        List<Producto> lista = new ArrayList<>();
+        String termino = texto == null ? "" : texto.trim();
+        String sql = SELECT_BASE
+                + "WHERE ? = '' OR LOWER(p.nombre) LIKE LOWER(?) "
+                + "OR LOWER(c.nombre) LIKE LOWER(?) "
+                + "OR LOWER(uc.nombre) LIKE LOWER(?) "
+                + "OR LOWER(ud.nombre) LIKE LOWER(?) "
+                + "OR LOWER(uc.abreviatura) LIKE LOWER(?) "
+                + "OR LOWER(ud.abreviatura) LIKE LOWER(?) "
+                + "ORDER BY p.nombre";
+        String patron = "%" + termino + "%";
+        try (Connection c = ConexionBD.obtener();
+             PreparedStatement ps = c.prepareStatement(sql)) {
+            ps.setString(1, termino);
+            for (int i = 2; i <= 7; i++) {
+                ps.setString(i, patron);
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    lista.add(mapear(rs));
+                }
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error al buscar productos: " + e.getMessage(), e);
+        }
+        return lista;
+    }
+
+    @Override
     public Producto obtener(int id) {
         try (Connection c = ConexionBD.obtener();
              PreparedStatement ps = c.prepareStatement(SELECT_BASE + "WHERE p.id_producto = ?")) {

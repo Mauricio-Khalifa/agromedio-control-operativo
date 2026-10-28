@@ -15,6 +15,7 @@ public class PlantillaOperativa {
     private String estado;
     private String fechaCarga;
     private int idCarga;
+    private int cantidadMercados = 1;
 
     // Campo de presentacion
     private String nombreCliente;
@@ -45,6 +46,8 @@ public class PlantillaOperativa {
     public void setFechaCarga(String fechaCarga) { this.fechaCarga = fechaCarga; }
     public int getIdCarga() { return idCarga; }
     public void setIdCarga(int idCarga) { this.idCarga = idCarga; }
+    public int getCantidadMercados() { return cantidadMercados; }
+    public void setCantidadMercados(int cantidadMercados) { this.cantidadMercados = cantidadMercados; }
     public String getNombreCliente() { return nombreCliente; }
     public void setNombreCliente(String nombreCliente) { this.nombreCliente = nombreCliente; }
 

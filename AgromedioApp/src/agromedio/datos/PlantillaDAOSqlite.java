@@ -10,7 +10,7 @@ import java.util.List;
 public class PlantillaDAOSqlite implements PlantillaDAO {
 
     private static final String SELECT_BASE =
-            "SELECT p.id_plantilla, p.id_cliente, p.nombre_mercado, p.fecha_programada, p.estado, p.fecha_carga, c.nombre_entidad, p.id_carga "
+            "SELECT p.id_plantilla, p.id_cliente, p.nombre_mercado, p.fecha_programada, p.estado, p.fecha_carga, c.nombre_entidad, p.id_carga, p.cantidad_mercados "
           + "FROM plantilla_operativa p JOIN cliente c ON c.id_cliente = p.id_cliente ";
 
     private static PlantillaOperativa mapear(ResultSet rs) throws SQLException {
@@ -18,6 +18,7 @@ public class PlantillaDAOSqlite implements PlantillaDAO {
                 rs.getString(4), rs.getString(5), rs.getString(6));
         p.setNombreCliente(rs.getString(7));
         p.setIdCarga(rs.getInt(8));
+        p.setCantidadMercados(rs.getInt(9));
         return p;
     }
 
@@ -69,8 +70,8 @@ public class PlantillaDAOSqlite implements PlantillaDAO {
     @Override
     public int guardar(PlantillaOperativa p) {
         String sqlInsert = "INSERT INTO plantilla_operativa "
-                + "(id_cliente, nombre_mercado, fecha_programada, estado, fecha_carga, id_carga) "
-                + "VALUES (?, ?, ?, ?, datetime('now','localtime'), ?)";
+                + "(id_cliente, nombre_mercado, fecha_programada, estado, fecha_carga, cantidad_mercados, id_carga) "
+                + "VALUES (?, ?, ?, ?, datetime('now','localtime'), ?, ?)";
         String sqlUpdate = "UPDATE plantilla_operativa SET id_cliente = ?, nombre_mercado = ?, fecha_programada = ? WHERE id_plantilla = ?";
         try (Connection c = ConexionBD.obtener()) {
             if (p.getIdPlantilla() == 0) {
@@ -79,10 +80,11 @@ public class PlantillaDAOSqlite implements PlantillaDAO {
                     ps.setString(2, p.getNombreMercado());
                     ps.setString(3, p.getFechaProgramada());
                     ps.setString(4, p.getEstado() == null ? PlantillaOperativa.ESTADO_CARGADA : p.getEstado());
+                    ps.setInt(5, Math.max(1, p.getCantidadMercados()));
                     if (p.getIdCarga() > 0) {
-                        ps.setInt(5, p.getIdCarga());
+                        ps.setInt(6, p.getIdCarga());
                     } else {
-                        ps.setNull(5, Types.INTEGER);
+                        ps.setNull(6, Types.INTEGER);
                     }
                     ps.executeUpdate();
                     try (ResultSet rs = ps.getGeneratedKeys()) {

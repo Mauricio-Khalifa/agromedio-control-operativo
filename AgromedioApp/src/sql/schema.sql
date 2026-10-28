@@ -18,6 +18,7 @@ DROP TABLE IF EXISTS detalle_despacho;
 DROP TABLE IF EXISTS despacho;
 DROP TABLE IF EXISTS detalle_recepcion;
 DROP TABLE IF EXISTS recepcion;
+DROP TABLE IF EXISTS distribucion_compra;
 DROP TABLE IF EXISTS detalle_compra;
 DROP TABLE IF EXISTS compra;
 DROP TABLE IF EXISTS detalle_alistamiento;
@@ -95,6 +96,7 @@ CREATE TABLE plantilla_operativa (
     estado              TEXT NOT NULL DEFAULT 'CARGADA'
                         CHECK (estado IN ('CARGADA','EN_COMPRA','RECIBIENDO','ALISTANDO','LISTA','DESPACHADA')),
     fecha_carga         TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    cantidad_mercados   INTEGER NOT NULL DEFAULT 1 CHECK (cantidad_mercados > 0),
     id_carga            INTEGER,
     FOREIGN KEY (id_cliente) REFERENCES cliente (id_cliente),
     FOREIGN KEY (id_carga)   REFERENCES carga_plantilla (id_carga) ON DELETE RESTRICT
@@ -137,11 +139,15 @@ CREATE TABLE detalle_alistamiento (
 -- ---------------------------------------------------------------------
 CREATE TABLE compra (
     id_compra       INTEGER PRIMARY KEY AUTOINCREMENT,
-    id_plantilla    INTEGER NOT NULL,
+    id_plantilla    INTEGER,
+    id_proveedor    INTEGER,
     fecha_compra    TEXT NOT NULL,
     estado          TEXT NOT NULL DEFAULT 'REGISTRADA'
                     CHECK (estado IN ('REGISTRADA','RECIBIDA','ANULADA')),
-    FOREIGN KEY (id_plantilla) REFERENCES plantilla_operativa (id_plantilla) ON DELETE RESTRICT
+    costo_total     REAL NOT NULL DEFAULT 0 CHECK (costo_total >= 0),
+    observaciones   TEXT,
+    FOREIGN KEY (id_plantilla) REFERENCES plantilla_operativa (id_plantilla) ON DELETE RESTRICT,
+    FOREIGN KEY (id_proveedor) REFERENCES proveedor (id_proveedor) ON DELETE RESTRICT
 ) STRICT;
 
 CREATE TABLE detalle_compra (
@@ -150,6 +156,8 @@ CREATE TABLE detalle_compra (
     id_producto         INTEGER NOT NULL,
     id_proveedor        INTEGER NOT NULL,
     cantidad_comprada   REAL NOT NULL CHECK (cantidad_comprada > 0),
+    costo_unitario      REAL NOT NULL DEFAULT 0 CHECK (costo_unitario >= 0),
+    subtotal            REAL NOT NULL DEFAULT 0 CHECK (subtotal >= 0),
     FOREIGN KEY (id_compra)    REFERENCES compra (id_compra) ON DELETE CASCADE,
     FOREIGN KEY (id_producto)  REFERENCES producto (id_producto),
     FOREIGN KEY (id_proveedor) REFERENCES proveedor (id_proveedor)
@@ -164,6 +172,17 @@ CREATE TABLE recepcion (
     fecha_recepcion TEXT NOT NULL,
     observaciones   TEXT,
     FOREIGN KEY (id_compra) REFERENCES compra (id_compra) ON DELETE CASCADE
+) STRICT;
+
+CREATE TABLE distribucion_compra (
+    id_distribucion     INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_detalle_compra   INTEGER NOT NULL,
+    id_plantilla        INTEGER NOT NULL,
+    cantidad_asignada   REAL NOT NULL CHECK (cantidad_asignada > 0),
+    costo_asignado      REAL NOT NULL DEFAULT 0 CHECK (costo_asignado >= 0),
+    FOREIGN KEY (id_detalle_compra) REFERENCES detalle_compra (id_detalle_compra) ON DELETE CASCADE,
+    FOREIGN KEY (id_plantilla) REFERENCES plantilla_operativa (id_plantilla) ON DELETE RESTRICT,
+    UNIQUE (id_detalle_compra, id_plantilla)
 ) STRICT;
 
 CREATE TABLE detalle_recepcion (
@@ -274,6 +293,8 @@ CREATE INDEX idx_detalle_plantilla_prod   ON detalle_plantilla (id_producto);
 CREATE INDEX idx_plantilla_carga          ON plantilla_operativa (id_carga);
 CREATE INDEX idx_compra_plantilla         ON compra (id_plantilla);
 CREATE INDEX idx_det_compra_compra        ON detalle_compra (id_compra);
+CREATE INDEX idx_distribucion_detalle     ON distribucion_compra (id_detalle_compra);
+CREATE INDEX idx_distribucion_plantilla   ON distribucion_compra (id_plantilla);
 CREATE INDEX idx_recepcion_compra         ON recepcion (id_compra);
 CREATE INDEX idx_det_recepcion_rec        ON detalle_recepcion (id_recepcion);
 CREATE INDEX idx_det_recepcion_detcomp    ON detalle_recepcion (id_detalle_compra);
@@ -314,23 +335,25 @@ LEFT JOIN (
     GROUP BY a.id_plantilla, da.id_producto
 ) al ON al.id_plantilla = pl.id_plantilla AND al.id_producto = det.id_producto
 LEFT JOIN (
-    SELECT c.id_plantilla, dc.id_producto,
-           ROUND(SUM(dc.cantidad_comprada * pr2.factor_conversion), 2) AS comprado
+    SELECT dcp.id_plantilla, dc.id_producto,
+           ROUND(SUM(dcp.cantidad_asignada * pr2.factor_conversion), 2) AS comprado
     FROM compra c
     JOIN detalle_compra dc ON dc.id_compra = c.id_compra
+    JOIN distribucion_compra dcp ON dcp.id_detalle_compra = dc.id_detalle_compra
     JOIN producto pr2      ON pr2.id_producto = dc.id_producto
     WHERE c.estado <> 'ANULADA'
-    GROUP BY c.id_plantilla, dc.id_producto
+    GROUP BY dcp.id_plantilla, dc.id_producto
 ) c ON c.id_plantilla = pl.id_plantilla AND c.id_producto = det.id_producto
 LEFT JOIN (
-    SELECT c.id_plantilla, dc.id_producto,
+    SELECT dcp.id_plantilla, dc.id_producto,
            ROUND(SUM(dr.cantidad_recibida * pr2.factor_conversion), 2) AS recibido
     FROM compra c
     JOIN detalle_compra dc     ON dc.id_compra = c.id_compra
+    JOIN distribucion_compra dcp ON dcp.id_detalle_compra = dc.id_detalle_compra
     JOIN detalle_recepcion dr  ON dr.id_detalle_compra = dc.id_detalle_compra
     JOIN producto pr2          ON pr2.id_producto = dc.id_producto
     WHERE c.estado <> 'ANULADA'
-    GROUP BY c.id_plantilla, dc.id_producto
+    GROUP BY dcp.id_plantilla, dc.id_producto
 ) r ON r.id_plantilla = pl.id_plantilla AND r.id_producto = det.id_producto
 LEFT JOIN (
     SELECT de.id_plantilla, dd.id_producto, SUM(dd.cantidad_despachada) AS despachado

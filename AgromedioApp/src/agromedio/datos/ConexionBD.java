@@ -338,6 +338,23 @@ public final class ConexionBD {
         }
     }
 
+    /** Limpia los datos operativos y conserva los catálogos para pruebas. */
+    public static synchronized void limpiarDatosOperativos() throws SQLException {
+        inicializar();
+        String[] tablas = {"detalle_despacho", "despacho", "detalle_recepcion", "recepcion",
+            "detalle_compra", "distribucion_compra", "compra", "detalle_alistamiento",
+            "alistamiento", "detalle_plantilla", "plantilla_operativa", "carga_plantilla"};
+        try (Connection c = conexionCruda(); Statement st = c.createStatement()) {
+            c.setAutoCommit(false);
+            try {
+                for (String tabla : tablas) st.executeUpdate("DELETE FROM " + tabla);
+                st.executeUpdate("DELETE FROM sqlite_sequence WHERE name IN ('detalle_despacho','despacho','detalle_recepcion','recepcion','detalle_compra','distribucion_compra','compra','detalle_alistamiento','alistamiento','detalle_plantilla','plantilla_operativa','carga_plantilla')");
+                c.commit();
+            } catch (SQLException e) { c.rollback(); throw e; }
+            finally { c.setAutoCommit(true); }
+        }
+    }
+
     /** Ejecuta un guion SQL multipaso ubicado en el classpath. */
     public static void ejecutarGuion(String recurso) throws SQLException {
         String contenido;

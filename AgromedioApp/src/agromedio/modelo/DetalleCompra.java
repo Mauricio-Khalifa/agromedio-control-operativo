@@ -6,6 +6,8 @@ public class DetalleCompra {
     private int idProducto;
     private int idProveedor;
     private double cantidadComprada;
+    private double costoUnitario;
+    private double subtotal;
 
     // Campos de presentacion
     private String nombreProducto;
@@ -32,6 +34,10 @@ public class DetalleCompra {
     public void setIdProveedor(int idProveedor) { this.idProveedor = idProveedor; }
     public double getCantidadComprada() { return cantidadComprada; }
     public void setCantidadComprada(double cantidadComprada) { this.cantidadComprada = cantidadComprada; }
+    public double getCostoUnitario() { return costoUnitario; }
+    public void setCostoUnitario(double costoUnitario) { this.costoUnitario = costoUnitario; }
+    public double getSubtotal() { return subtotal; }
+    public void setSubtotal(double subtotal) { this.subtotal = subtotal; }
     public String getNombreProducto() { return nombreProducto; }
     public void setNombreProducto(String nombreProducto) { this.nombreProducto = nombreProducto; }
     public String getNombreProveedor() { return nombreProveedor; }
