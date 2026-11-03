@@ -10,6 +10,7 @@ import agromedio.datos.ConsultaDAOSqlite;
 import agromedio.logica.CompraServicio;
 import agromedio.modelo.DetalleCompra;
 import agromedio.modelo.FilaConsolidado;
+import agromedio.modelo.FilaSaldo;
 import agromedio.modelo.PlantillaOperativa;
 import agromedio.modelo.Producto;
 import agromedio.modelo.Proveedor;
@@ -134,11 +135,12 @@ public class FrmCompras extends JInternalFrame {
             consolidar();
         });
         btnPreparar.addActionListener(e -> prepararCompra());
-        // Refresca las plantillas al entrar a la pestaña de registro (RF04):
-        // permite ver las plantillas cargadas despues de abrir la ventana.
+        // Actualiza el dato comprado al entrar al seguimiento sin tocar las otras columnas.
         pestanias.addChangeListener(e -> {
             if (pestanias.getSelectedIndex() == 1) {
                 cargarPlantillas();
+            } else if (pestanias.getSelectedIndex() == 3) {
+                actualizarCompradoSeguimiento();
             }
         });
         btnPreparar.setEnabled(false);
@@ -166,16 +168,44 @@ public class FrmCompras extends JInternalFrame {
         panel.add(norte, BorderLayout.NORTH);
         UiUtil.prepararTabla(tablaSeguimiento);
         panel.add(new JScrollPane(tablaSeguimiento), BorderLayout.CENTER);
-        Runnable cargar = () -> {
-            modeloSeguimiento.setRowCount(0);
-            for (agromedio.modelo.FilaSaldo f : new ConsultaDAOSqlite().saldoTotal()) {
-                modeloSeguimiento.addRow(new Object[]{f.getNombreMercado(), f.getProducto(), f.getSolicitado(),
-                        f.getComprado(), f.getRecibido(), f.getAlistado(), f.getDespachado(), f.getPorDespachar()});
-            }
-        };
-        actualizar.addActionListener(e -> cargar.run());
-        cargar.run();
+        actualizar.addActionListener(e -> actualizarCompradoSeguimiento());
+        cargarSeguimiento();
         return panel;
+    }
+
+    /** Carga completa inicial y solo se usa si cambió la estructura de filas. */
+    private void cargarSeguimiento() {
+        modeloSeguimiento.setRowCount(0);
+        for (FilaSaldo f : new ConsultaDAOSqlite().saldoTotal()) {
+            modeloSeguimiento.addRow(new Object[]{f.getNombreMercado(), f.getProducto(), f.getSolicitado(),
+                    f.getComprado(), f.getRecibido(), f.getAlistado(), f.getDespachado(), f.getPorDespachar()});
+        }
+    }
+
+    /** Refresca exclusivamente la columna Comprado; conserva el resto de datos visibles. */
+    private void actualizarCompradoSeguimiento() {
+        try {
+            List<FilaSaldo> filas = new ConsultaDAOSqlite().saldoTotal();
+            boolean mismasFilas = filas.size() == modeloSeguimiento.getRowCount();
+            if (mismasFilas) {
+                for (int i = 0; i < filas.size(); i++) {
+                    if (!String.valueOf(modeloSeguimiento.getValueAt(i, 0)).equals(filas.get(i).getNombreMercado())
+                            || !String.valueOf(modeloSeguimiento.getValueAt(i, 1)).equals(filas.get(i).getProducto())) {
+                        mismasFilas = false;
+                        break;
+                    }
+                }
+            }
+            if (!mismasFilas) {
+                cargarSeguimiento();
+                return;
+            }
+            for (int i = 0; i < filas.size(); i++) {
+                modeloSeguimiento.setValueAt(filas.get(i).getComprado(), i, 3);
+            }
+        } catch (Exception e) {
+            UiUtil.error(this, e);
+        }
     }
 
     private JPanel crearTabPedidos() {
@@ -233,6 +263,7 @@ public class FrmCompras extends JInternalFrame {
                 new agromedio.datos.CompraDAOSqlite().actualizarEstado(id, agromedio.modelo.Compra.ANULADA);
                 cargar.run();
                 consolidar();
+                actualizarCompradoSeguimiento();
             } catch (Exception ex) {
                 UiUtil.error(this, ex);
             }
@@ -388,6 +419,7 @@ public class FrmCompras extends JInternalFrame {
                 UiUtil.mensaje(this, pedidos.size() + " pedido(s) registrado(s), agrupado(s) automáticamente por proveedor.");
                 cargarPlantillas();
                 consolidar();
+                actualizarCompradoSeguimiento();
             } catch (Exception ex) {
                 UiUtil.error(this, ex);
             }
