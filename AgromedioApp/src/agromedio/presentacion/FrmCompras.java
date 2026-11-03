@@ -19,6 +19,7 @@ import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JInternalFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
@@ -207,10 +208,10 @@ public class FrmCompras extends JInternalFrame {
             int fila = tablaPedidos.getSelectedRow();
             if (fila < 0) { UiUtil.error(this, "Seleccione un pedido."); return; }
             int id = ((Number) modeloPedidos.getValueAt(fila, 0)).intValue();
-            StringBuilder sb = new StringBuilder("Detalle del pedido #").append(id).append("\\n\\n");
+            StringBuilder sb = new StringBuilder("Detalle del pedido #").append(id).append("\n\n");
             for (DetalleCompra d : servicio.detalle(id)) {
                 sb.append(d.getNombreProducto()).append(" | ").append(d.getCantidadComprada())
-                  .append(" ").append(d.getAbreviatura()).append(" | Subtotal: ").append(d.getSubtotal()).append("\\n");
+                  .append(" ").append(d.getAbreviatura()).append(" | Subtotal: ").append(d.getSubtotal()).append("\n");
             }
             UiUtil.mensaje(this, sb.toString());
         });
@@ -222,8 +223,19 @@ public class FrmCompras extends JInternalFrame {
             if (!agromedio.modelo.Compra.REGISTRADA.equals(estado)) {
                 UiUtil.error(this, "Solo se pueden anular pedidos registrados y sin recepción."); return;
             }
-            new agromedio.datos.CompraDAOSqlite().actualizarEstado(id, agromedio.modelo.Compra.ANULADA);
-            cargar.run(); consolidar();
+            int confirmar = JOptionPane.showConfirmDialog(this,
+                    "¿Desea anular el pedido #" + id + "? Sus productos volverán al pendiente del consolidado.",
+                    "Confirmar anulación", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            if (confirmar != JOptionPane.YES_OPTION) {
+                return;
+            }
+            try {
+                new agromedio.datos.CompraDAOSqlite().actualizarEstado(id, agromedio.modelo.Compra.ANULADA);
+                cargar.run();
+                consolidar();
+            } catch (Exception ex) {
+                UiUtil.error(this, ex);
+            }
         });
         cargar.run();
         return panel;
@@ -414,20 +426,25 @@ public class FrmCompras extends JInternalFrame {
     private void consolidar() {
         try {
             modeloConsolidado.setRowCount(0);
-            consolidado = servicio.consolidar(txtFecha.getText().trim());
+            List<FilaConsolidado> filas = servicio.consolidar(txtFecha.getText().trim());
+            consolidado = new ArrayList<>();
+            // Mantiene visibles los productos que aún tengan saldo por comprar.
+            // Al completar la compra desaparecen; una anulación los vuelve a incluir
+            // porque la consulta de demanda excluye las compras con estado ANULADA.
+            for (FilaConsolidado f : filas) {
+                if (f.getPendiente() > 0.005) {
+                    consolidado.add(f);
+                }
+            }
             for (FilaConsolidado f : consolidado) {
                 modeloConsolidado.addRow(new Object[]{f.getProducto(),
                         f.getTotalSolicitado(), f.getUnidadDespacho(),
                         f.getTotalComprado(), f.getMercados(),
                         f.getPendiente()});
             }
-            lblConsolidado.setText(consolidado.size() + " producto(s) en el consolidado");
+            lblConsolidado.setText(consolidado.size() + " producto(s) pendiente(s) en el consolidado");
             if (consolidado.isEmpty()) {
-                modeloConsolidado.addRow(new Object[]{"(sin demanda para la fecha indicada)", "", "", "", "", ""});
-                UiUtil.mensaje(this, "No hay plantillas activas con demanda para la fecha "
-                        + txtFecha.getText().trim() + ".\\n"
-                        + "Verifique la fecha (debe coincidir con la fecha programada de la plantilla) "
-                        + "o cargue una plantilla con esa fecha.");
+                modeloConsolidado.addRow(new Object[]{"(sin productos pendientes para la fecha indicada)", "", "", "", "", ""});
             }
             tablaConsolidado.clearSelection();
             actualizarBotonPreparar();
