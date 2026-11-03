@@ -135,12 +135,11 @@ public class FrmCompras extends JInternalFrame {
             consolidar();
         });
         btnPreparar.addActionListener(e -> prepararCompra());
-        // Actualiza el dato comprado al entrar al seguimiento sin tocar las otras columnas.
         pestanias.addChangeListener(e -> {
             if (pestanias.getSelectedIndex() == 1) {
                 cargarPlantillas();
             } else if (pestanias.getSelectedIndex() == 3) {
-                actualizarCompradoSeguimiento();
+                actualizarSeguimiento();
             }
         });
         btnPreparar.setEnabled(false);
@@ -168,40 +167,18 @@ public class FrmCompras extends JInternalFrame {
         panel.add(norte, BorderLayout.NORTH);
         UiUtil.prepararTabla(tablaSeguimiento);
         panel.add(new JScrollPane(tablaSeguimiento), BorderLayout.CENTER);
-        actualizar.addActionListener(e -> actualizarCompradoSeguimiento());
-        cargarSeguimiento();
+        actualizar.addActionListener(e -> actualizarSeguimiento());
+        actualizarSeguimiento();
         return panel;
     }
 
-    /** Carga completa inicial y solo se usa si cambió la estructura de filas. */
-    private void cargarSeguimiento() {
-        modeloSeguimiento.setRowCount(0);
-        for (FilaSaldo f : new ConsultaDAOSqlite().saldoTotal()) {
-            modeloSeguimiento.addRow(new Object[]{f.getNombreMercado(), f.getProducto(), f.getSolicitado(),
-                    f.getComprado(), f.getRecibido(), f.getAlistado(), f.getDespachado(), f.getPorDespachar()});
-        }
-    }
-
-    /** Refresca exclusivamente la columna Comprado; conserva el resto de datos visibles. */
-    private void actualizarCompradoSeguimiento() {
+    /** Vuelve a consultar y reconstruye todas las columnas del seguimiento por plantilla. */
+    private void actualizarSeguimiento() {
         try {
-            List<FilaSaldo> filas = new ConsultaDAOSqlite().saldoTotal();
-            boolean mismasFilas = filas.size() == modeloSeguimiento.getRowCount();
-            if (mismasFilas) {
-                for (int i = 0; i < filas.size(); i++) {
-                    if (!String.valueOf(modeloSeguimiento.getValueAt(i, 0)).equals(filas.get(i).getNombreMercado())
-                            || !String.valueOf(modeloSeguimiento.getValueAt(i, 1)).equals(filas.get(i).getProducto())) {
-                        mismasFilas = false;
-                        break;
-                    }
-                }
-            }
-            if (!mismasFilas) {
-                cargarSeguimiento();
-                return;
-            }
-            for (int i = 0; i < filas.size(); i++) {
-                modeloSeguimiento.setValueAt(filas.get(i).getComprado(), i, 3);
+            modeloSeguimiento.setRowCount(0);
+            for (FilaSaldo f : new ConsultaDAOSqlite().saldoTotal()) {
+                modeloSeguimiento.addRow(new Object[]{f.getNombreMercado(), f.getProducto(), f.getSolicitado(),
+                        f.getComprado(), f.getRecibido(), f.getAlistado(), f.getDespachado(), f.getPorDespachar()});
             }
         } catch (Exception e) {
             UiUtil.error(this, e);
@@ -263,7 +240,7 @@ public class FrmCompras extends JInternalFrame {
                 new agromedio.datos.CompraDAOSqlite().actualizarEstado(id, agromedio.modelo.Compra.ANULADA);
                 cargar.run();
                 consolidar();
-                actualizarCompradoSeguimiento();
+                actualizarSeguimiento();
             } catch (Exception ex) {
                 UiUtil.error(this, ex);
             }
@@ -291,8 +268,6 @@ public class FrmCompras extends JInternalFrame {
                 return this;
             }
         });
-        // El producto no se selecciona manualmente: siempre llega desde una
-        // fila elegida en el consolidado mediante "Preparar compra".
         cmbProducto.setEnabled(false);
         cmbProducto.setToolTipText("Seleccione el producto desde el consolidado de demanda.");
         for (Proveedor pr : proveedorDAO.listar()) {
@@ -419,7 +394,7 @@ public class FrmCompras extends JInternalFrame {
                 UiUtil.mensaje(this, pedidos.size() + " pedido(s) registrado(s), agrupado(s) automáticamente por proveedor.");
                 cargarPlantillas();
                 consolidar();
-                actualizarCompradoSeguimiento();
+                actualizarSeguimiento();
             } catch (Exception ex) {
                 UiUtil.error(this, ex);
             }
@@ -460,9 +435,6 @@ public class FrmCompras extends JInternalFrame {
             modeloConsolidado.setRowCount(0);
             List<FilaConsolidado> filas = servicio.consolidar(txtFecha.getText().trim());
             consolidado = new ArrayList<>();
-            // Mantiene visibles los productos que aún tengan saldo por comprar.
-            // Al completar la compra desaparecen; una anulación los vuelve a incluir
-            // porque la consulta de demanda excluye las compras con estado ANULADA.
             for (FilaConsolidado f : filas) {
                 if (f.getPendiente() > 0.005) {
                     consolidado.add(f);
