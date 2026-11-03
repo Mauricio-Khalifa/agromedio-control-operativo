@@ -10,7 +10,12 @@ import java.util.List;
 public class CompraDAOSqlite implements CompraDAO {
 
     private static final String SELECT_BASE =
-            "SELECT c.id_compra, c.id_plantilla, c.fecha_compra, c.estado, p.nombre_mercado, "
+            "SELECT c.id_compra, c.id_plantilla, c.fecha_compra, c.estado, "
+          + "COALESCE((SELECT GROUP_CONCAT(DISTINCT po.nombre_mercado) "
+          + "FROM detalle_compra dc2 "
+          + "JOIN distribucion_compra dcp ON dcp.id_detalle_compra = dc2.id_detalle_compra "
+          + "JOIN plantilla_operativa po ON po.id_plantilla = dcp.id_plantilla "
+          + "WHERE dc2.id_compra = c.id_compra), p.nombre_mercado), "
           + "c.id_proveedor, c.costo_total, c.observaciones, pv.nombre "
           + "FROM compra c LEFT JOIN plantilla_operativa p ON p.id_plantilla = c.id_plantilla "
           + "LEFT JOIN proveedor pv ON pv.id_proveedor = c.id_proveedor ";
