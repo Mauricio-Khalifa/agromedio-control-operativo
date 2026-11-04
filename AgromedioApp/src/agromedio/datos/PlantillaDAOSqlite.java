@@ -40,6 +40,14 @@ public class PlantillaDAOSqlite implements PlantillaDAO {
 
     @Override
     public List<PlantillaOperativa> listarPorEstado(String... estados) {
+        // Reconstruye estados desde recepciones, alistamientos y despachos antes
+        // de filtrar. Así los combos operativos no dependen de que una acción
+        // previa haya actualizado correctamente plantilla_operativa.estado.
+        try {
+            SincronizadorEstadosOperativos.sincronizar();
+        } catch (SQLException e) {
+            throw new RuntimeException("Error al sincronizar estados operativos: " + e.getMessage(), e);
+        }
         if (estados.length == 0) {
             return listar();
         }
@@ -81,16 +89,11 @@ public class PlantillaDAOSqlite implements PlantillaDAO {
                     ps.setString(3, p.getFechaProgramada());
                     ps.setString(4, p.getEstado() == null ? PlantillaOperativa.ESTADO_CARGADA : p.getEstado());
                     ps.setInt(5, Math.max(1, p.getCantidadMercados()));
-                    if (p.getIdCarga() > 0) {
-                        ps.setInt(6, p.getIdCarga());
-                    } else {
-                        ps.setNull(6, Types.INTEGER);
-                    }
+                    if (p.getIdCarga() > 0) ps.setInt(6, p.getIdCarga());
+                    else ps.setNull(6, Types.INTEGER);
                     ps.executeUpdate();
                     try (ResultSet rs = ps.getGeneratedKeys()) {
-                        if (rs.next()) {
-                            p.setIdPlantilla(rs.getInt(1));
-                        }
+                        if (rs.next()) p.setIdPlantilla(rs.getInt(1));
                     }
                     return p.getIdPlantilla();
                 }
@@ -129,9 +132,7 @@ public class PlantillaDAOSqlite implements PlantillaDAO {
             ps.setInt(1, idPlantilla);
             ps.setInt(2, idPlantilla);
             ps.setInt(3, idPlantilla);
-            try (ResultSet rs = ps.executeQuery()) {
-                return rs.next() && rs.getInt(1) == 1;
-            }
+            try (ResultSet rs = ps.executeQuery()) { return rs.next() && rs.getInt(1) == 1; }
         } catch (SQLException e) {
             throw new RuntimeException("Error al consultar historico de la plantilla: " + e.getMessage(), e);
         }
@@ -184,9 +185,7 @@ public class PlantillaDAOSqlite implements PlantillaDAO {
         try (Connection c = ConexionBD.obtener(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setInt(1, idDetallePlantilla);
             try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) {
-                    return null;
-                }
+                if (!rs.next()) return null;
                 DetallePlantilla d = new DetallePlantilla(rs.getInt(1), rs.getInt(2), rs.getInt(3), rs.getDouble(4));
                 d.setNombreProducto(rs.getString(5));
                 d.setAbreviatura(rs.getString(6));
@@ -217,13 +216,12 @@ public class PlantillaDAOSqlite implements PlantillaDAO {
             ps.setInt(1, idDetallePlantilla);
             ps.executeUpdate();
         } catch (SQLException e) {
-            throw new RuntimeException("Error al eliminar producto de la plantilla: " + e.getMessage(), e);
+            throw new RuntimeException("Error al eliminar detalle de plantilla: " + e.getMessage(), e);
         }
     }
 
     private List<PlantillaOperativa> consultar(String sql) {
-        try (Connection c = ConexionBD.obtener();
-             PreparedStatement ps = c.prepareStatement(sql)) {
+        try (Connection c = ConexionBD.obtener(); PreparedStatement ps = c.prepareStatement(sql)) {
             return ejecutar(ps);
         } catch (SQLException e) {
             throw new RuntimeException("Error al listar plantillas: " + e.getMessage(), e);
@@ -233,9 +231,7 @@ public class PlantillaDAOSqlite implements PlantillaDAO {
     private List<PlantillaOperativa> ejecutar(PreparedStatement ps) throws SQLException {
         List<PlantillaOperativa> lista = new ArrayList<>();
         try (ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                lista.add(mapear(rs));
-            }
+            while (rs.next()) lista.add(mapear(rs));
         }
         return lista;
     }
