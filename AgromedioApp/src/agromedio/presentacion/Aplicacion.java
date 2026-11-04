@@ -1,6 +1,7 @@
 package agromedio.presentacion;
 
 import agromedio.datos.ConexionBD;
+import agromedio.datos.SincronizadorEstadosOperativos;
 
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
@@ -13,6 +14,8 @@ public class Aplicacion {
         SwingUtilities.invokeLater(() -> {
             try {
                 ConexionBD.inicializar();
+                // Repara estados históricos de compras consolidadas antes de abrir módulos.
+                SincronizadorEstadosOperativos.sincronizar();
             } catch (Exception e) {
                 JOptionPane.showMessageDialog(null,
                         "No se pudo inicializar la base de datos:\n" + e.getMessage(),
