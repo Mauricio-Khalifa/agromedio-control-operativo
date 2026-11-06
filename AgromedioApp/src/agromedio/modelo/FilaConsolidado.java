@@ -10,6 +10,7 @@ public class FilaConsolidado {
     private double totalSolicitado;
     private double totalEnUnidadCompra;
     private int mercados;
+    private String nombresMercados;
     private double totalComprado;
     private double pendiente;
 
@@ -29,6 +30,8 @@ public class FilaConsolidado {
     public void setTotalEnUnidadCompra(double totalEnUnidadCompra) { this.totalEnUnidadCompra = totalEnUnidadCompra; }
     public int getMercados() { return mercados; }
     public void setMercados(int mercados) { this.mercados = mercados; }
+    public String getNombresMercados() { return nombresMercados; }
+    public void setNombresMercados(String nombresMercados) { this.nombresMercados = nombresMercados; }
     public double getTotalComprado() { return totalComprado; }
     public void setTotalComprado(double totalComprado) { this.totalComprado = totalComprado; }
     public double getPendiente() { return pendiente; }

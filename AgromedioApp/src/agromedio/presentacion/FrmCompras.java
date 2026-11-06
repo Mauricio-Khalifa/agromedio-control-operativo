@@ -46,11 +46,11 @@ public class FrmCompras extends JInternalFrame {
 
     // Pestaña consolidado
     private final DefaultTableModel modeloConsolidado = UiUtil.modelo(
-            new Object[]{"Producto", "Demanda", "U.", "En compra", "Mercados", "Pendiente"}, false);
+            new Object[]{"Producto", "Demanda", "U.", "En compra", "Mercados", "Solicitan", "Pendiente"}, false);
     private final JTextField txtFecha = UiUtil.campo();
     private final JTabbedPane pestanias = new JTabbedPane();
     private final DefaultTableModel modeloPedidos = UiUtil.modelo(
-            new Object[]{"Pedido", "Fecha", "Proveedor", "Mercado", "Costo total", "Estado"}, false);
+            new Object[]{"Pedido", "Producto(s)", "Fecha", "Proveedor", "Mercado", "Costo total", "Estado"}, false);
     private final JTable tablaPedidos = new JTable(modeloPedidos);
     private final DefaultTableModel modeloSeguimiento = UiUtil.modelo(
             new Object[]{"Plantilla / mercado", "Producto", "Solicitado", "Comprado", "Recibido", "Alistado", "Despachado", "Por despachar"}, false);
@@ -204,7 +204,13 @@ public class FrmCompras extends JInternalFrame {
         Runnable cargar = () -> {
             modeloPedidos.setRowCount(0);
             for (agromedio.modelo.Compra c : new agromedio.datos.CompraDAOSqlite().listar()) {
-                modeloPedidos.addRow(new Object[]{c.getIdCompra(), c.getFechaCompra(),
+                String productos = servicio.detalle(c.getIdCompra()).stream()
+                        .map(DetalleCompra::getNombreProducto)
+                        .filter(java.util.Objects::nonNull)
+                        .distinct()
+                        .collect(java.util.stream.Collectors.joining(", "));
+                modeloPedidos.addRow(new Object[]{c.getIdCompra(), productos,
+                        c.getFechaCompra(),
                         c.getNombreProveedor() == null ? "Sin proveedor" : c.getNombreProveedor(),
                         c.getNombreMercado() == null ? "Consolidado" : c.getNombreMercado(),
                         c.getCostoTotal(), c.getEstado()});
@@ -226,7 +232,7 @@ public class FrmCompras extends JInternalFrame {
             int fila = tablaPedidos.getSelectedRow();
             if (fila < 0) { UiUtil.error(this, "Seleccione un pedido."); return; }
             int id = ((Number) modeloPedidos.getValueAt(fila, 0)).intValue();
-            String estado = String.valueOf(modeloPedidos.getValueAt(fila, 5));
+            String estado = String.valueOf(modeloPedidos.getValueAt(fila, 6));
             if (!agromedio.modelo.Compra.REGISTRADA.equals(estado)) {
                 UiUtil.error(this, "Solo se pueden anular pedidos registrados y sin recepción."); return;
             }
@@ -443,7 +449,7 @@ public class FrmCompras extends JInternalFrame {
             for (FilaConsolidado f : consolidado) {
                 modeloConsolidado.addRow(new Object[]{f.getProducto(),
                         f.getTotalSolicitado(), f.getUnidadDespacho(),
-                        f.getTotalComprado(), f.getMercados(),
+                        f.getTotalComprado(), f.getMercados(), f.getNombresMercados(),
                         f.getPendiente()});
             }
             lblConsolidado.setText(consolidado.size() + " producto(s) pendiente(s) en el consolidado");

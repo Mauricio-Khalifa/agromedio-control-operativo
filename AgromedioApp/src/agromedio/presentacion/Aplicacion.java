@@ -22,6 +22,11 @@ public class Aplicacion {
                         "Agromedio - Error", JOptionPane.ERROR_MESSAGE);
                 System.exit(1);
             }
+            FrmLogin login = new FrmLogin();
+            login.setVisible(true);
+            if (!login.isAutenticado()) {
+                System.exit(0);
+            }
             FrmPrincipal principal = new FrmPrincipal();
             principal.setVisible(true);
             if (Boolean.getBoolean("agromedio.demo")) {

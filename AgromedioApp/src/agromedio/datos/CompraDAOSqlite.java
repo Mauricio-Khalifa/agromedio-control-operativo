@@ -11,6 +11,8 @@ public class CompraDAOSqlite implements CompraDAO {
 
     private static final String SELECT_BASE =
             "SELECT c.id_compra, c.id_plantilla, c.fecha_compra, c.estado, "
+          + "(SELECT GROUP_CONCAT(DISTINCT pr.nombre) FROM detalle_compra dc3 "
+          + "JOIN producto pr ON pr.id_producto = dc3.id_producto WHERE dc3.id_compra = c.id_compra), "
           + "COALESCE((SELECT GROUP_CONCAT(DISTINCT po.nombre_mercado) "
           + "FROM detalle_compra dc2 "
           + "JOIN distribucion_compra dcp ON dcp.id_detalle_compra = dc2.id_detalle_compra "
@@ -22,11 +24,12 @@ public class CompraDAOSqlite implements CompraDAO {
 
     private static Compra mapear(ResultSet rs) throws SQLException {
         Compra c = new Compra(rs.getInt(1), rs.getInt(2), rs.getString(3), rs.getString(4));
-        c.setNombreMercado(rs.getString(5));
-        c.setIdProveedor(rs.getInt(6));
-        c.setCostoTotal(rs.getDouble(7));
-        c.setObservaciones(rs.getString(8));
-        c.setNombreProveedor(rs.getString(9));
+        c.setProductos(rs.getString(5));
+        c.setNombreMercado(rs.getString(6));
+        c.setIdProveedor(rs.getInt(7));
+        c.setCostoTotal(rs.getDouble(8));
+        c.setObservaciones(rs.getString(9));
+        c.setNombreProveedor(rs.getString(10));
         return c;
     }
 

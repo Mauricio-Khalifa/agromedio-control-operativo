@@ -13,6 +13,7 @@ public class Compra {
     private String observaciones;
     private int idProveedor;
     private String nombreProveedor;
+    private String productos;
 
     // Campos de presentacion
     private String nombreMercado;
@@ -42,6 +43,8 @@ public class Compra {
     public void setIdProveedor(int idProveedor) { this.idProveedor = idProveedor; }
     public String getNombreProveedor() { return nombreProveedor; }
     public void setNombreProveedor(String nombreProveedor) { this.nombreProveedor = nombreProveedor; }
+    public String getProductos() { return productos; }
+    public void setProductos(String productos) { this.productos = productos; }
     public String getNombreMercado() { return nombreMercado; }
     public void setNombreMercado(String nombreMercado) { this.nombreMercado = nombreMercado; }
 

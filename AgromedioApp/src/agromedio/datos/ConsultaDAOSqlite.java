@@ -196,10 +196,17 @@ public class ConsultaDAOSqlite implements ConsultaDAO {
     public List<FilaConsolidado> consolidarDemanda(String fechaProgramada) {
         List<FilaConsolidado> filas = new ArrayList<>();
         String sql =
-                "SELECT pr.id_producto, pr.nombre, umd.abreviatura, umc.abreviatura, pr.factor_conversion, "
+                "SELECT MIN(pr.id_producto), CASE WHEN INSTR(pr.nombre, ' (') > 0 THEN SUBSTR(pr.nombre, 1, INSTR(pr.nombre, ' (') - 1) ELSE pr.nombre END, umd.abreviatura, umc.abreviatura, pr.factor_conversion, "
               + "SUM(dp.cantidad_solicitada) AS total_solicitado, "
               + "ROUND(SUM(dp.cantidad_solicitada) / pr.factor_conversion, 2) AS total_unidad_compra, "
-              + "COUNT(DISTINCT dp.id_plantilla) AS mercados, "
+              + "(SELECT COALESCE(SUM(x.cantidad_mercados), 0) FROM (SELECT DISTINCT dp2.id_plantilla, p2.cantidad_mercados "
+               + "    FROM detalle_plantilla dp2 JOIN plantilla_operativa p2 ON p2.id_plantilla = dp2.id_plantilla "
+               + "    JOIN producto pr2 ON pr2.id_producto = dp2.id_producto "
+               + "    WHERE p2.fecha_programada = ? "
+               + "      AND pr2.id_unidad_despacho = pr.id_unidad_despacho "
+               + "      AND (CASE WHEN INSTR(pr2.nombre, ' (') > 0 THEN SUBSTR(pr2.nombre, 1, INSTR(pr2.nombre, ' (') - 1) ELSE pr2.nombre END) = (CASE WHEN INSTR(pr.nombre, ' (') > 0 THEN SUBSTR(pr.nombre, 1, INSTR(pr.nombre, ' (') - 1) ELSE pr.nombre END) "
+               + "      AND p2.estado IN ('CARGADA','EN_COMPRA','RECIBIENDO','ALISTANDO','LISTA')) x) AS mercados, "
+               + "GROUP_CONCAT(DISTINCT p.nombre_mercado) AS nombres_mercados, "
               + "ROUND(COALESCE(SUM(comp.cantidad), 0), 2) AS total_comprado "
               + "FROM detalle_plantilla dp "
               + "JOIN plantilla_operativa p ON p.id_plantilla = dp.id_plantilla "
@@ -218,10 +225,11 @@ public class ConsultaDAOSqlite implements ConsultaDAO {
               + ") comp ON comp.id_plantilla = dp.id_plantilla AND comp.id_producto = dp.id_producto "
               + "WHERE p.fecha_programada = ? "
               + "AND p.estado IN ('CARGADA','EN_COMPRA','RECIBIENDO','ALISTANDO','LISTA') "
-              + "GROUP BY pr.id_producto "
+              + "GROUP BY CASE WHEN INSTR(pr.nombre, ' (') > 0 THEN SUBSTR(pr.nombre, 1, INSTR(pr.nombre, ' (') - 1) ELSE pr.nombre END, umd.abreviatura "
               + "ORDER BY pr.nombre";
         try (Connection c = ConexionBD.obtener(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, fechaProgramada);
+            ps.setString(2, fechaProgramada);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     FilaConsolidado f = new FilaConsolidado();
@@ -233,7 +241,9 @@ public class ConsultaDAOSqlite implements ConsultaDAO {
                     f.setTotalSolicitado(rs.getDouble(6));
                     f.setTotalEnUnidadCompra(rs.getDouble(7));
                     f.setMercados(rs.getInt(8));
-                    f.setTotalComprado(rs.getDouble(9));
+                     f.setNombresMercados(rs.getString(9));
+                     f.setTotalComprado(rs.getDouble(10));
+                    f.setTotalComprado(rs.getDouble(10));
                     f.setPendiente(Math.max(0,
                             Math.round((f.getTotalSolicitado() - f.getTotalComprado()) * 100.0) / 100.0));
                     filas.add(f);

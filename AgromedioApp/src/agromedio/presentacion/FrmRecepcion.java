@@ -18,6 +18,7 @@ import javax.swing.JTextField;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
 import java.awt.BorderLayout;
 import java.awt.Component;
@@ -74,12 +75,44 @@ public class FrmRecepcion extends JInternalFrame {
 
         tablaDetalle = new JTable(modeloDetalle);
         UiUtil.prepararTabla(tablaDetalle);
+        tablaDetalle.setDefaultRenderer(Object.class, new javax.swing.table.DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean selected,
+                    boolean focused, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, selected, focused, row, column);
+                if (column == COL_RECIBIR) {
+                    c.setBackground(selected ? Tema.PRIMARIO : new Color(255, 224, 102));
+                    c.setForeground(selected ? Color.WHITE : Tema.TEXTO);
+                    c.setFont(Tema.BASE_NEGRITA.deriveFont(16f));
+                    setText(value == null || (value instanceof Number n && n.doubleValue() == 0)
+                            ? "" : String.valueOf(value));
+                } else if (!selected) {
+                    c.setBackground(Tema.SUPERFICIE);
+                    c.setForeground(Tema.TEXTO);
+                }
+                return c;
+            }
+        });
         // Habilita el boton "Registrar entrega" mientras se escribe (sin esperar Enter).
         JTextField editorCantidad = new JTextField();
+        editorCantidad.setBackground(new Color(255, 224, 102));
+        editorCantidad.setForeground(Tema.TEXTO);
+        editorCantidad.setFont(Tema.BASE_NEGRITA.deriveFont(16f));
+        editorCantidad.setBorder(BorderFactory.createLineBorder(new Color(190, 145, 0), 2));
+        editorCantidad.setDocument(new javax.swing.text.PlainDocument() {
+            @Override
+            public void insertString(int offset, String str, javax.swing.text.AttributeSet attr)
+                    throws javax.swing.text.BadLocationException {
+                if (str != null && str.matches("[0-9]*")) {
+                    super.insertString(offset, str, attr);
+                }
+            }
+        });
         TableColumn colRecibir = tablaDetalle.getColumnModel().getColumn(COL_RECIBIR);
         colRecibir.setCellEditor(new javax.swing.DefaultCellEditor(editorCantidad));
         colRecibir.setPreferredWidth(150);
         colRecibir.setMinWidth(100);
+        editorCantidad.setText("");
         editorCantidad.getDocument().addDocumentListener(new DocumentListener() {
             @Override
             public void insertUpdate(DocumentEvent e) { actualizarResumen(); }
@@ -101,6 +134,9 @@ public class FrmRecepcion extends JInternalFrame {
                         && !tablaDetalle.isEditing()) {
                     tablaDetalle.editCellAt(fila, columna);
                     Component editor = tablaDetalle.getEditorComponent();
+                    if (editor instanceof JTextField tf) {
+                        tf.setText("");
+                    }
                     if (editor != null) {
                         editor.requestFocusInWindow();
                     }
@@ -124,8 +160,8 @@ public class FrmRecepcion extends JInternalFrame {
 
         add(crearNorte(), BorderLayout.NORTH);
 
-        JButton btnCerrar = UiUtil.botonSecundario("Cerrar recepción",
-                Iconos.accion(Iconos.Accion.CERRAR, Tema.PRIMARIO));
+        JButton btnCerrar = UiUtil.botonPeligro("Cargar recepción",
+                Iconos.accion(Iconos.Accion.CARGAR, Color.WHITE));
         JButton btnRefrescar = UiUtil.botonSecundario("Refrescar",
                 Iconos.accion(Iconos.Accion.REFRESCAR, Tema.PRIMARIO));
         JPanel sur = new JPanel(new BorderLayout(8, 0));
@@ -176,7 +212,21 @@ public class FrmRecepcion extends JInternalFrame {
         g.gridx = 0; g.gridy = 0;
         form.add(new JLabel("Compra pendiente"), g);
         g.gridx = 1; g.weightx = 1; g.fill = GridBagConstraints.HORIZONTAL;
-        cmbCompra.setPreferredSize(new java.awt.Dimension(330, 34));
+        cmbCompra.setPreferredSize(new java.awt.Dimension(560, 34));
+        cmbCompra.setRenderer(new javax.swing.DefaultListCellRenderer() {
+            @Override
+            public java.awt.Component getListCellRendererComponent(javax.swing.JList<?> list, Object value,
+                    int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof Compra c) {
+                    String producto = c.getProductos() == null || c.getProductos().isBlank()
+                            ? "Producto no especificado" : c.getProductos();
+                    setText("Compra #" + c.getIdCompra() + " - " + producto + " - "
+                            + (c.getNombreProveedor() == null ? "Sin proveedor" : c.getNombreProveedor()));
+                }
+                return this;
+            }
+        });
         form.add(cmbCompra, g);
 
         g.gridx = 0; g.gridy = 1; g.weightx = 0; g.fill = GridBagConstraints.NONE;
@@ -295,6 +345,9 @@ public class FrmRecepcion extends JInternalFrame {
             List<Double> recibidas = new ArrayList<>();
             for (int i = 0; i < modeloDetalle.getRowCount(); i++) {
                 double cantidad = valor(modeloDetalle.getValueAt(i, COL_RECIBIR));
+                if (cantidad != Math.rint(cantidad)) {
+                    throw new IllegalArgumentException("La cantidad recibida debe ser un número entero.");
+                }
                 double maximo = valor(modeloDetalle.getValueAt(i, COL_FALTANTE));
                 if (cantidad < 0) {
                     throw new IllegalArgumentException("La cantidad recibida no puede ser negativa.");
