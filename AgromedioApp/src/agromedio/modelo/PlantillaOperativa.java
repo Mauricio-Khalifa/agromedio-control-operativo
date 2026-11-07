@@ -52,5 +52,5 @@ public class PlantillaOperativa {
     public void setNombreCliente(String nombreCliente) { this.nombreCliente = nombreCliente; }
 
     @Override
-    public String toString() { return "#" + idPlantilla + " " + nombreMercado; }
+    public String toString() { return "#" + idPlantilla + " " + nombreMercado + " - " + nombreCliente; }
 }

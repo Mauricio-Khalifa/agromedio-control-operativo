@@ -2,6 +2,7 @@ package agromedio.presentacion;
 
 import javax.swing.JDesktopPane;
 import javax.swing.JInternalFrame;
+import javax.swing.JOptionPane;
 import javax.swing.event.InternalFrameAdapter;
 import javax.swing.event.InternalFrameEvent;
 import javax.swing.plaf.basic.BasicInternalFrameUI;
@@ -32,6 +33,16 @@ public final class Navegador {
     }
 
     public JInternalFrame abrir(String clave, Supplier<? extends JInternalFrame> fabrica) {
+        JInternalFrame activa = escritorio.getSelectedFrame();
+        if (activa != null && !clave.equals(claveDe(activa)) && activa instanceof EdicionPendiente pendiente
+                && pendiente.hayEdicionPendiente()) {
+            int opcion = JOptionPane.showConfirmDialog(escritorio,
+                    "Hay información sin guardar en el módulo actual.\n"
+                            + "Seleccione 'No' para continuar trabajando o 'Sí' para abandonarla.",
+                    "Edición pendiente", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            if (opcion != JOptionPane.YES_OPTION) return activa;
+        }
+        cerrarTodosExcepto(clave);
         JInternalFrame existente = abiertos.get(clave);
         if (existente != null && existente.isDisplayable() && !existente.isClosed()) {
             mostrar(existente);
@@ -62,6 +73,19 @@ public final class Navegador {
         if (frame != null) {
             frame.dispose();
         }
+    }
+
+    private void cerrarTodosExcepto(String claveConservar) {
+        for (Map.Entry<String, JInternalFrame> entrada : abiertos.entrySet().toArray(new Map.Entry[0])) {
+            if (!entrada.getKey().equals(claveConservar)) entrada.getValue().dispose();
+        }
+    }
+
+    private String claveDe(JInternalFrame frame) {
+        for (Map.Entry<String, JInternalFrame> entrada : abiertos.entrySet()) {
+            if (entrada.getValue() == frame) return entrada.getKey();
+        }
+        return "";
     }
 
     public void cerrarTodo() {

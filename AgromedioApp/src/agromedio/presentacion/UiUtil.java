@@ -231,6 +231,8 @@ public final class UiUtil {
         tabla.setShowGrid(false);
         tabla.setIntercellSpacing(new Dimension(0, 1));
         tabla.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        tabla.setSelectionBackground(Tema.SELECCION_TABLA);
+        tabla.setSelectionForeground(Tema.TEXTO);
         tabla.setFillsViewportHeight(true);
         tabla.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
         tabla.putClientProperty("terminateEditOnFocusLost", Boolean.TRUE);
@@ -258,17 +260,17 @@ public final class UiUtil {
     }
 
     public static void mensaje(Component padre, String texto) {
-        JOptionPane.showMessageDialog(padre, texto, "Agromedio", JOptionPane.INFORMATION_MESSAGE);
+        mostrarDialogo(padre, texto, "Información", Tema.PRIMARIO, JOptionPane.INFORMATION_MESSAGE);
     }
 
     public static void error(Component padre, String texto) {
-        JOptionPane.showMessageDialog(padre, texto, "Agromedio - Error", JOptionPane.ERROR_MESSAGE);
+        mostrarDialogo(padre, texto, "Error", Tema.PELIGRO, JOptionPane.ERROR_MESSAGE);
     }
 
     public static void error(Component padre, Exception e) {
         String msg;
-        if (e instanceof SQLException) {
-            msg = "No se pudo completar la operacion en la base de datos.\n\nDetalle: " + e.getMessage();
+        if (e instanceof java.sql.SQLException) {
+            msg = "No se pudo completar la operacion en la base de datos.\\n\\nDetalle: " + e.getMessage();
         } else if (e instanceof NumberFormatException) {
             msg = "Ingrese un numero valido. Ejemplo: 12,5 o 12.5";
         } else if (e instanceof NullPointerException) {
@@ -280,8 +282,45 @@ public final class UiUtil {
     }
 
     public static boolean confirmar(Component padre, String texto) {
-        return JOptionPane.showConfirmDialog(padre, texto, "Agromedio",
-                JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE) == JOptionPane.YES_OPTION;
+        return mostrarConfirmacion(padre, texto);
+    }
+
+    private static void mostrarDialogo(Component padre, String texto, String titulo, Color color, int tipo) {
+        JPanel panel = new JPanel(new BorderLayout(15, 15));
+        panel.setOpaque(false);
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        JLabel lblTexto = new JLabel("<html><div style='text-align: center;'>" + texto + "</div></html>");
+        lblTexto.setFont(Tema.fuente(Font.BOLD, 16));
+        lblTexto.setHorizontalAlignment(JLabel.CENTER);
+
+        JPanel cabecera = new JPanel(new BorderLayout());
+        cabecera.setOpaque(false);
+        JLabel lblTitulo = new JLabel(titulo);
+        lblTitulo.setFont(Tema.fuente(Font.BOLD, 20));
+        lblTitulo.setForeground(color);
+        cabecera.add(lblTitulo, BorderLayout.WEST);
+
+        panel.add(cabecera, BorderLayout.NORTH);
+        panel.add(lblTexto, BorderLayout.CENTER);
+
+        JOptionPane.showMessageDialog(padre, panel, titulo, tipo);
+    }
+
+    private static boolean mostrarConfirmacion(Component padre, String texto) {
+        JPanel panel = new JPanel(new BorderLayout(15, 15));
+        panel.setOpaque(false);
+        panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        JLabel lblTexto = new JLabel("<html><div style='text-align: center;'>" + texto + "</div></html>");
+        lblTexto.setFont(Tema.fuente(Font.BOLD, 16));
+        lblTexto.setHorizontalAlignment(JLabel.CENTER);
+
+        panel.add(lblTexto, BorderLayout.CENTER);
+
+        int opcion = JOptionPane.showConfirmDialog(padre, panel, "Confirmación",
+                JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+        return opcion == JOptionPane.YES_OPTION;
     }
 
     /** Aplica solo la fuente base al contenedor; no aplasta la jerarquia de sus hijos. */
@@ -360,6 +399,44 @@ public final class UiUtil {
                 case "ANULADA" -> Tema.PELIGRO;
                 default -> Tema.TEXTO;
             };
+        }
+    }
+
+    public static class RendererEntero extends DefaultTableCellRenderer {
+        public RendererEntero() {
+            setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 8));
+            setFont(Tema.TABLA.deriveFont(Font.BOLD));
+            setHorizontalAlignment(RIGHT);
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable tabla, Object valor, boolean seleccion,
+                                                       boolean foco, int fila, int columna) {
+            super.getTableCellRendererComponent(tabla, valor, seleccion, foco, fila, columna);
+            setBackground(fondo(tabla, seleccion, fila));
+            setForeground(seleccion ? tabla.getSelectionForeground() : Tema.PRIMARIO_OSCURO);
+
+            if (valor instanceof Number n) {
+                setText(String.format("%.0f", n.doubleValue()));
+            } else {
+                setText(valor == null ? "" : valor.toString());
+            }
+            return this;
+        }
+
+        private Color fondo(JTable tabla, boolean seleccion, int fila) {
+            if (seleccion) return tabla.getSelectionBackground();
+            return fila % 2 == 0 ? Tema.SUPERFICIE : Tema.SUPERFICIE_ALT;
+        }
+    }
+
+    public static class RendererEdicion extends DefaultTableCellRenderer {
+        public RendererEdicion() {
+            setBorder(BorderFactory.createLineBorder(Tema.PRIMARIO, 2));
+            setFont(Tema.TABLA.deriveFont(Font.BOLD));
+            setHorizontalAlignment(CENTER);
+            setBackground(new Color(255, 248, 200)); // Amarillo claro destacado
+            setForeground(Tema.TEXTO);
         }
     }
 }

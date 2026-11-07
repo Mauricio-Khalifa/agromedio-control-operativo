@@ -16,6 +16,8 @@ import agromedio.modelo.Producto;
 import agromedio.modelo.Proveedor;
 
 import javax.swing.BorderFactory;
+import javax.swing.JDialog;
+import javax.swing.SwingUtilities;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JInternalFrame;
@@ -29,6 +31,8 @@ import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Dialog;
+import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
@@ -37,7 +41,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Modulo 1 - Compras: consolidacion de demanda (RF03) y registro (RF04). */
-public class FrmCompras extends JInternalFrame {
+public class FrmCompras extends JInternalFrame implements EdicionPendiente {
 
     private final CompraServicio servicio = new CompraServicio();
     private final PlantillaDAO plantillaDAO = new PlantillaDAOSqlite();
@@ -155,6 +159,44 @@ public class FrmCompras extends JInternalFrame {
         return panel;
     }
 
+    private void mostrarDetallePedido(int id) {
+        JDialog dialogo = new JDialog(SwingUtilities.getWindowAncestor(this), "Detalle del pedido #" + id,
+                Dialog.ModalityType.APPLICATION_MODAL);
+        dialogo.setSize(720, 470);
+        dialogo.setLocationRelativeTo(this);
+        JPanel raiz = new JPanel(new BorderLayout(12, 12));
+        raiz.setBackground(Tema.FONDO);
+        raiz.setBorder(BorderFactory.createEmptyBorder(18, 20, 18, 20));
+
+        JLabel titulo = new JLabel("Pedido #" + id);
+        titulo.setFont(Tema.fuente(Font.BOLD, 24));
+        titulo.setForeground(Tema.PRIMARIO_OSCURO);
+        JLabel subtitulo = UiUtil.subtitulo("Productos y cantidades registradas");
+        JPanel cabecera = new JPanel(new BorderLayout(4, 2));
+        cabecera.setOpaque(false);
+        cabecera.add(titulo, BorderLayout.NORTH);
+        cabecera.add(subtitulo, BorderLayout.SOUTH);
+        raiz.add(cabecera, BorderLayout.NORTH);
+
+        DefaultTableModel modelo = UiUtil.modelo(new Object[]{"Producto", "Cantidad", "Unidad", "Subtotal"}, false);
+        JTable tabla = new JTable(modelo);
+        UiUtil.prepararTabla(tabla);
+        tabla.setRowHeight(32);
+        tabla.getTableHeader().setFont(Tema.BASE_NEGRITA);
+        tabla.getTableHeader().setBackground(Tema.PRIMARIO_OSCURO);
+        tabla.getTableHeader().setForeground(Color.WHITE);
+        for (DetalleCompra d : servicio.detalle(id)) {
+            modelo.addRow(new Object[]{d.getNombreProducto(), d.getCantidadComprada(), d.getAbreviatura(), d.getSubtotal()});
+        }
+        raiz.add(new JScrollPane(tabla), BorderLayout.CENTER);
+        JLabel ayuda = new JLabel("Detalle de productos del pedido");
+        ayuda.setFont(Tema.BASE_NEGRITA);
+        ayuda.setForeground(Tema.PRIMARIO_OSCURO);
+        raiz.add(ayuda, BorderLayout.SOUTH);
+        dialogo.setContentPane(raiz);
+        dialogo.setVisible(true);
+    }
+
     private JPanel crearTabSeguimiento() {
         JPanel panel = new JPanel(new BorderLayout(8, 8));
         panel.setBackground(Tema.FONDO);
@@ -221,12 +263,7 @@ public class FrmCompras extends JInternalFrame {
             int fila = tablaPedidos.getSelectedRow();
             if (fila < 0) { UiUtil.error(this, "Seleccione un pedido."); return; }
             int id = ((Number) modeloPedidos.getValueAt(fila, 0)).intValue();
-            StringBuilder sb = new StringBuilder("Detalle del pedido #").append(id).append("\n\n");
-            for (DetalleCompra d : servicio.detalle(id)) {
-                sb.append(d.getNombreProducto()).append(" | ").append(d.getCantidadComprada())
-                  .append(" ").append(d.getAbreviatura()).append(" | Subtotal: ").append(d.getSubtotal()).append("\n");
-            }
-            UiUtil.mensaje(this, sb.toString());
+            mostrarDetallePedido(id);
         });
         anular.addActionListener(e -> {
             int fila = tablaPedidos.getSelectedRow();
@@ -408,6 +445,9 @@ public class FrmCompras extends JInternalFrame {
 
         return contenedor;
     }
+
+    @Override
+    public boolean hayEdicionPendiente() { return !items.isEmpty(); }
 
     private String textoProducto(Producto p) {
         String nombre = p.getNombre();

@@ -134,7 +134,17 @@ public class FrmDetallePlantilla extends JInternalFrame {
 
         refrescar();
         UiUtil.fuenteRaiz(this);
-        lblTitulo.setText("Plantilla #" + idPlantilla);
+        actualizarTitulo(lblTitulo);
+    }
+
+    private void actualizarTitulo(JLabel lblTitulo) {
+        PlantillaOperativa p = plantillaDAO.obtener(idPlantilla);
+        if (p == null) {
+            lblTitulo.setText("Detalle de plantilla");
+            return;
+        }
+        String cliente = p.getNombreCliente() == null ? "" : p.getNombreCliente();
+        lblTitulo.setText(p.getNombreMercado() + " | " + cliente);
     }
 
     private boolean editable() {

@@ -155,12 +155,16 @@ public class CompraServicio {
                 if (asignado + 0.0001 < d.getCantidadComprada()) {
                     try (Connection c = ConexionBD.obtener(); PreparedStatement ps = c.prepareStatement(
                             "SELECT dp.id_plantilla, MAX(dp.cantidad_solicitada - COALESCE(x.comprado, 0)) "
-                            + "FROM detalle_plantilla dp LEFT JOIN (SELECT dcp.id_plantilla, dc.id_producto, SUM(dcp.cantidad_asignada) AS comprado "
+                            + "FROM detalle_plantilla dp JOIN producto pd ON pd.id_producto = dp.id_producto "
+                            + "LEFT JOIN (SELECT dcp.id_plantilla, dc.id_producto, SUM(dcp.cantidad_asignada) AS comprado "
                             + "FROM detalle_compra dc JOIN distribucion_compra dcp ON dcp.id_detalle_compra = dc.id_detalle_compra "
                             + "JOIN compra co ON co.id_compra = dc.id_compra AND co.estado <> 'ANULADA' "
-                            + "WHERE dc.id_producto = ? GROUP BY dcp.id_plantilla, dc.id_producto) x "
+                            + "GROUP BY dcp.id_plantilla, dc.id_producto) x "
                             + "ON x.id_plantilla = dp.id_plantilla AND x.id_producto = dp.id_producto "
-                            + "WHERE dp.id_producto = ? GROUP BY dp.id_plantilla ORDER BY dp.id_plantilla")) {
+                            + "WHERE pd.id_unidad_despacho = (SELECT id_unidad_despacho FROM producto WHERE id_producto = ?) "
+                            + "AND (CASE WHEN INSTR(pd.nombre, ' (') > 0 THEN SUBSTR(pd.nombre, 1, INSTR(pd.nombre, ' (') - 1) ELSE pd.nombre END) "
+                            + "= (SELECT CASE WHEN INSTR(nombre, ' (') > 0 THEN SUBSTR(nombre, 1, INSTR(nombre, ' (') - 1) ELSE nombre END FROM producto WHERE id_producto = ?) "
+                            + "GROUP BY dp.id_plantilla ORDER BY dp.id_plantilla")) {
                         ps.setInt(1, d.getIdProducto()); ps.setInt(2, d.getIdProducto());
                         try (ResultSet rs = ps.executeQuery()) {
                             while (rs.next() && asignado + 0.0001 < d.getCantidadComprada()) {

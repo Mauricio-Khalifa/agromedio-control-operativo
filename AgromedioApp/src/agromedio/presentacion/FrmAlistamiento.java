@@ -18,7 +18,9 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.JTextField;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableColumn;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.FlowLayout;
@@ -73,6 +75,39 @@ public class FrmAlistamiento extends JInternalFrame {
         };
         JTable tabla = new JTable(modelo);
         UiUtil.prepararTabla(tabla);
+
+        // Formato para columna "Alistada" (Uso de RendererEntero para quitar el .0)
+        TableColumn colAlistada = tabla.getColumnModel().getColumn(5);
+        colAlistada.setCellRenderer(new UiUtil.RendererEntero());
+        
+        // Bloquear letras en la edicion y formato entero
+        JTextField txtEntero = new JTextField();
+        txtEntero.setFont(Tema.TABLA.deriveFont(java.awt.Font.BOLD));
+        txtEntero.setHorizontalAlignment(JTextField.CENTER);
+        txtEntero.setBorder(BorderFactory.createLineBorder(Tema.PRIMARIO, 2));
+        txtEntero.setBackground(new java.awt.Color(255, 255, 200));
+        txtEntero.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyTyped(java.awt.event.KeyEvent e) {
+                if (!Character.isDigit(e.getKeyChar())) e.consume();
+            }
+        });
+        
+        // Usamos un editor personalizado para controlar el texto que entra al campo
+        colAlistada.setCellEditor(new javax.swing.DefaultCellEditor(txtEntero) {
+            @Override
+            public java.awt.Component getTableCellEditorComponent(JTable table, Object value, boolean isSelected, int row, int column) {
+                if (value instanceof Number n) {
+                    txtEntero.setText(String.format("%.0f", n.doubleValue()));
+                } else if (value != null) {
+                    txtEntero.setText(value.toString());
+                } else {
+                    txtEntero.setText("");
+                }
+                return txtEntero;
+            }
+        });
+
         JScrollPane scroll = new JScrollPane(tabla);
         scroll.setBorder(BorderFactory.createLineBorder(Tema.BORDE));
         add(scroll, BorderLayout.CENTER);

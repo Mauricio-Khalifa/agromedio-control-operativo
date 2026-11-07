@@ -196,40 +196,33 @@ public class ConsultaDAOSqlite implements ConsultaDAO {
     public List<FilaConsolidado> consolidarDemanda(String fechaProgramada) {
         List<FilaConsolidado> filas = new ArrayList<>();
         String sql =
-                "SELECT MIN(pr.id_producto), CASE WHEN INSTR(pr.nombre, ' (') > 0 THEN SUBSTR(pr.nombre, 1, INSTR(pr.nombre, ' (') - 1) ELSE pr.nombre END, umd.abreviatura, umc.abreviatura, pr.factor_conversion, "
-              + "SUM(dp.cantidad_solicitada) AS total_solicitado, "
-              + "ROUND(SUM(dp.cantidad_solicitada) / pr.factor_conversion, 2) AS total_unidad_compra, "
-              + "(SELECT COALESCE(SUM(x.cantidad_mercados), 0) FROM (SELECT DISTINCT dp2.id_plantilla, p2.cantidad_mercados "
-               + "    FROM detalle_plantilla dp2 JOIN plantilla_operativa p2 ON p2.id_plantilla = dp2.id_plantilla "
-               + "    JOIN producto pr2 ON pr2.id_producto = dp2.id_producto "
-               + "    WHERE p2.fecha_programada = ? "
-               + "      AND pr2.id_unidad_despacho = pr.id_unidad_despacho "
-               + "      AND (CASE WHEN INSTR(pr2.nombre, ' (') > 0 THEN SUBSTR(pr2.nombre, 1, INSTR(pr2.nombre, ' (') - 1) ELSE pr2.nombre END) = (CASE WHEN INSTR(pr.nombre, ' (') > 0 THEN SUBSTR(pr.nombre, 1, INSTR(pr.nombre, ' (') - 1) ELSE pr.nombre END) "
-               + "      AND p2.estado IN ('CARGADA','EN_COMPRA','RECIBIENDO','ALISTANDO','LISTA')) x) AS mercados, "
-               + "GROUP_CONCAT(DISTINCT p.nombre_mercado) AS nombres_mercados, "
-              + "ROUND(COALESCE(SUM(comp.cantidad), 0), 2) AS total_comprado "
-              + "FROM detalle_plantilla dp "
-              + "JOIN plantilla_operativa p ON p.id_plantilla = dp.id_plantilla "
+                "WITH demanda AS ("
+              + "SELECT CASE WHEN INSTR(pr.nombre, ' (') > 0 THEN SUBSTR(pr.nombre, 1, INSTR(pr.nombre, ' (') - 1) ELSE pr.nombre END AS producto_base, "
+              + "pr.id_unidad_despacho, umd.abreviatura AS unidad_despacho, umc.abreviatura AS unidad_compra, "
+              + "MIN(pr.id_producto) AS id_producto, MIN(pr.factor_conversion) AS factor_conversion, "
+              + "SUM(dp.cantidad_solicitada) AS solicitado, "
+              + "SUM(DISTINCT p.cantidad_mercados) AS mercados, "
+              + "GROUP_CONCAT(DISTINCT p.nombre_mercado) AS nombres_mercados "
+              + "FROM detalle_plantilla dp JOIN plantilla_operativa p ON p.id_plantilla = dp.id_plantilla "
               + "JOIN producto pr ON pr.id_producto = dp.id_producto "
               + "JOIN unidad_medida umd ON umd.id_unidad = pr.id_unidad_despacho "
               + "JOIN unidad_medida umc ON umc.id_unidad = pr.id_unidad_compra "
-              + "LEFT JOIN ( "
-              + "    SELECT dcp.id_plantilla, dc.id_producto, "
-              + "           SUM(dcp.cantidad_asignada * pr2.factor_conversion) AS cantidad "
-              + "    FROM compra c "
-              + "    JOIN detalle_compra dc ON dc.id_compra = c.id_compra "
-              + "    JOIN distribucion_compra dcp ON dcp.id_detalle_compra = dc.id_detalle_compra "
-               + "    JOIN producto pr2 ON pr2.id_producto = dc.id_producto "
-              + "    WHERE c.estado <> 'ANULADA' "
-              + "    GROUP BY dcp.id_plantilla, dc.id_producto "
-              + ") comp ON comp.id_plantilla = dp.id_plantilla AND comp.id_producto = dp.id_producto "
-              + "WHERE p.fecha_programada = ? "
-              + "AND p.estado IN ('CARGADA','EN_COMPRA','RECIBIENDO','ALISTANDO','LISTA') "
-              + "GROUP BY CASE WHEN INSTR(pr.nombre, ' (') > 0 THEN SUBSTR(pr.nombre, 1, INSTR(pr.nombre, ' (') - 1) ELSE pr.nombre END, umd.abreviatura "
-              + "ORDER BY pr.nombre";
+              + "WHERE p.fecha_programada = ? AND p.estado IN ('CARGADA','EN_COMPRA','RECIBIENDO','ALISTANDO','LISTA') "
+              + "GROUP BY producto_base, pr.id_unidad_despacho, umd.abreviatura, umc.abreviatura), "
+              + "comprado AS ("
+              + "SELECT CASE WHEN INSTR(pr.nombre, ' (') > 0 THEN SUBSTR(pr.nombre, 1, INSTR(pr.nombre, ' (') - 1) ELSE pr.nombre END AS producto_base, "
+              + "pr.id_unidad_despacho, SUM(dcp.cantidad_asignada * pr.factor_conversion) AS cantidad "
+              + "FROM compra c JOIN detalle_compra dc ON dc.id_compra = c.id_compra "
+              + "JOIN distribucion_compra dcp ON dcp.id_detalle_compra = dc.id_detalle_compra "
+              + "JOIN producto pr ON pr.id_producto = dc.id_producto WHERE c.estado <> 'ANULADA' "
+              + "GROUP BY producto_base, pr.id_unidad_despacho) "
+              + "SELECT d.id_producto, d.producto_base, d.unidad_despacho, d.unidad_compra, d.factor_conversion, "
+              + "d.solicitado, ROUND(d.solicitado / d.factor_conversion, 2), d.mercados, d.nombres_mercados, "
+              + "ROUND(COALESCE(c.cantidad, 0), 2) "
+              + "FROM demanda d LEFT JOIN comprado c ON c.producto_base = d.producto_base AND c.id_unidad_despacho = d.id_unidad_despacho "
+              + "WHERE ROUND(d.solicitado - COALESCE(c.cantidad, 0), 2) > 0 ORDER BY d.producto_base";
         try (Connection c = ConexionBD.obtener(); PreparedStatement ps = c.prepareStatement(sql)) {
             ps.setString(1, fechaProgramada);
-            ps.setString(2, fechaProgramada);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     FilaConsolidado f = new FilaConsolidado();

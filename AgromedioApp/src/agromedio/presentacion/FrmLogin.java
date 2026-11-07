@@ -11,8 +11,8 @@ public class FrmLogin extends JDialog {
 
     public FrmLogin() {
         super((Frame) null, "Acceso a AGROMEDIO", true);
-        setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
-        setSize(430, 270);
+        setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        setSize(600, 300);
         setResizable(false);
         setLocationRelativeTo(null);
 
@@ -46,8 +46,14 @@ public class FrmLogin extends JDialog {
 
         JButton ingresar = UiUtil.botonPrimario("Ingresar", Iconos.accion(Iconos.Accion.VERIFICAR, Color.WHITE));
         JButton salir = UiUtil.botonSecundario("Salir", Iconos.accion(Iconos.Accion.CERRAR, Tema.PRIMARIO));
-        JPanel botones = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        botones.add(salir); botones.add(ingresar);
+        JButton demo = UiUtil.botonSecundario("Acceso demo", Iconos.accion(Iconos.Accion.VER, Tema.PRIMARIO));
+        JPanel botones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 4));
+        salir.setPreferredSize(new Dimension(95, 38));
+        demo.setPreferredSize(new Dimension(170, 38));
+        ingresar.setPreferredSize(new Dimension(115, 38));
+        botones.add(salir);
+        botones.add(demo);
+        botones.add(ingresar);
         g.gridy = 4;
         panel.add(botones, g);
         setContentPane(panel);
@@ -65,7 +71,17 @@ public class FrmLogin extends JDialog {
         };
         ingresar.addActionListener(e -> validar.run());
         contrasena.addActionListener(e -> validar.run());
+        demo.addActionListener(e -> {
+            autenticado = true;
+            dispose();
+        });
         salir.addActionListener(e -> dispose());
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent e) {
+                dispose();
+            }
+        });
         usuario.requestFocusInWindow();
     }
 

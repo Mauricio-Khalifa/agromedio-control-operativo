@@ -21,6 +21,8 @@ public final class Tema {
     public static final Color PRIMARIO = new Color(47, 107, 79);
     public static final Color PRIMARIO_OSCURO = new Color(35, 79, 59);
     public static final Color PRIMARIO_SUAVE = new Color(230, 240, 232);
+    /** Fondo de selección de tablas: contraste visible para identificar la fila activa. */
+    public static final Color SELECCION_TABLA = new Color(190, 225, 255);
     public static final Color ACENTO = new Color(163, 100, 42);
     public static final Color ACENTO_CLARO = new Color(232, 190, 120);
     public static final Color EXITO = new Color(46, 125, 79);
@@ -75,7 +77,7 @@ public final class Tema {
         UIManager.put("Table.showVerticalLines", false);
         UIManager.put("Table.intercellSpacing", new Dimension(0, 1));
         UIManager.put("Table.alternateRowColor", new Color(250, 251, 249));
-        UIManager.put("Table.selectionBackground", PRIMARIO_SUAVE);
+        UIManager.put("Table.selectionBackground", SELECCION_TABLA);
         UIManager.put("Table.selectionForeground", TEXTO);
         UIManager.put("TableHeader.font", TABLA_ENCABEZADO);
         UIManager.put("TableHeader.height", 36);
