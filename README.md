@@ -144,15 +144,39 @@ La aplicación usa **SQLite**. En el primer inicio crea y carga automáticamente
 
 ## 🖼️ Visuales
 
-Capturas de la aplicación en ejecución:
+Capturas actualizadas de los módulos de la aplicación:
 
-### Ventana principal
+### Menú de navegación
 
-![Ventana principal de AGROMEDIO](docs/imagenes/ventana-vacia.png)
+![Menú de navegación de AGROMEDIO](docs/imagenes/menu%20de%20navegacion%20.png)
+
+### Carga de plantillas
+
+![Carga de plantillas](docs/imagenes/Carga%20de%20plantillas%20.png)
 
 ### Procesos abiertos
 
-![Panel de procesos abiertos de AGROMEDIO](docs/imagenes/ventana-principal.png)
+![Procesos abiertos](docs/imagenes/Procesos%20abiertos.png)
+
+### Seguimiento de plantillas abiertas
+
+![Seguimiento de las plantillas abiertas](docs/imagenes/Seguimiento%20de%20las%20plantillas%20abiertas.png)
+
+### Compras
+
+![Sección de compras](docs/imagenes/seccion%20de%20compras%20.png)
+
+### Recepción
+
+![Recepción de productos](docs/imagenes/recepcion.png)
+
+### Alistamiento y recepción
+
+![Alistamiento y recepción](docs/imagenes/alistamiento%20y%20recepcion%20.png)
+
+### Despacho
+
+![Despacho de productos](docs/imagenes/despacho%20.png)
 
 ## 📚 Documentación
 
