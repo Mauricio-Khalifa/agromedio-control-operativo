@@ -30,6 +30,7 @@ AGROMEDIO es un prototipo académico de escritorio que permite organizar el cicl
 - [Abrir en NetBeans](#-abrir-en-netbeans)
 - [Base de datos](#-base-de-datos)
 - [Formatos de entrada](#-formatos-de-entrada)
+- [Visuales](#-visuales)
 - [Documentación](#-documentación)
 - [Créditos](#-créditos)
 
@@ -70,7 +71,7 @@ La base de datos SQLite organiza la información en tablas relacionadas por llav
 | **Compras y recepción** | `compra`, `detalle_compra`, `distribucion_compra`, `recepcion`, `detalle_recepcion` | Compras, productos y proveedores asociados, distribución de cantidades entre plantillas y entregas recibidas con faltantes acumulados. |
 | **Alistamiento y despacho** | `alistamiento`, `detalle_alistamiento`, `despacho`, `detalle_despacho` | Preparación de productos y verificación de cada ítem al momento de despachar un mercado. |
 
-El esquema también incluye vistas de consulta para el **saldo de cada plantilla** (`v_saldo_plantilla`), los **faltantes de recepción** (`v_faltantes_recepcion`) y el **avance del despacho** (`v_avance_despacho`). Triggers y restricciones refuerzan reglas como no completar un ítem con cantidad cero y conservar el historial operativo.
+El esquema también incluye vistas de consulta para el **saldo de cada plantilla** (`v_saldo_plantilla`), los **faltantes de recepción** (`v_faltantes_recepcion`) y el **avance del despacho** (`v_avance_despacho`).
 
 ## 📁 Estructura del repositorio
 
@@ -90,7 +91,7 @@ En **PowerShell**:
 
 ```powershell
 # 1. Clonar el repositorio y entrar al proyecto
- git clone https://github.com/Mauricio-Khalifa/agromedio-control-operativo.git
+git clone https://github.com/Mauricio-Khalifa/agromedio-control-operativo.git
 cd agromedio-control-operativo\AgromedioApp
 
 # 2. Compilar y generar dist\AgromedioApp.jar
@@ -129,7 +130,7 @@ Selecciona **Archivo → Abrir proyecto…** y elige la carpeta `AgromedioApp`. 
 
 ## 🛢️ Base de datos
 
-La aplicación usa **SQLite**. En el primer inicio crea y carga automáticamente la base de datos desde `AgromedioApp/src/sql/schema.sql` y `AgromedioApp/src/sql/seed.sql`. Las copias de consulta están en `docs/base_de_datos/`. No es necesario instalar un servidor de base de datos aparte.
+La aplicación usa **SQLite**. En el primer inicio crea y carga automáticamente la base de datos desde `AgromedioApp/src/sql/schema.sql` y `AgromedioApp/src/sql/seed.sql`. Las copias de consulta están en `docs/base_de_datos/`.
 
 ## 📄 Formatos de entrada
 
@@ -140,6 +141,18 @@ La aplicación usa **SQLite**. En el primer inicio crea y carga automáticamente
 - **Cantidades:** admite números y textos como `9 unidades`, `1 de 300 gr`, `2 de 1000 ml`, `400 gramos`, `1 libra`, `0.25 libra` o `1 rama`.
 - Si un producto no existe, puede crearse automáticamente en el catálogo con la unidad detectada y la presentación entre paréntesis cuando aplica.
 - Cada archivo se identifica mediante SHA-256; al intentar cargar de nuevo el mismo archivo, la aplicación informa **“Carga ya realizada”**.
+
+## 🖼️ Visuales
+
+Capturas de la aplicación en ejecución:
+
+### Ventana principal
+
+![Ventana principal de AGROMEDIO](docs/imagenes/ventana-vacia.png)
+
+### Procesos abiertos
+
+![Panel de procesos abiertos de AGROMEDIO](docs/imagenes/ventana-principal.png)
 
 ## 📚 Documentación
 
