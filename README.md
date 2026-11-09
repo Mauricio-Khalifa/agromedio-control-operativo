@@ -188,8 +188,10 @@ Capturas actualizadas de los módulos de la aplicación:
 - [Datos de demostración](docs/base_de_datos/seed.sql)
 
 ## Créditos
-Este proyecto fue desarrollado integrando los conocimientos de las materias, agradecemos a la Universitaria Tecnologica de Santander por darnos esta oportunidad para desarrollarnos dentro de un contexto de proyecto real 
+Este proyecto fue desarrollado integrando los conocimientos de las materias, agradecemos a la Universitaria Tecnologica de Santander por darnos esta oportunidad para desarrollarnos dentro de un contexto de proyecto real.
+
 Lo hacemos posible 💚
+
 - Planeacion de sistemas informaticos 
 - Motores de bases de datos 
 - Programacion Orientada a objetos 
