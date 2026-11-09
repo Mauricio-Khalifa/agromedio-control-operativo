@@ -15,6 +15,8 @@ public interface ConsultaDAO {
     List<FilaSaldo> saldoTotal();
     List<FilaFaltante> faltantesRecepcion();
     List<FilaConsolidado> consolidarDemanda(String fechaProgramada);
+    /** Fecha programada mas proxima con demanda pendiente por comprar (para precargar el consolidado). */
+    String fechaConsolidadoPendiente();
     List<FilaAvance> avanceDespacho();
     List<FilaProgreso> progresoAbierto();
     ResumenProgreso resumenProgreso();

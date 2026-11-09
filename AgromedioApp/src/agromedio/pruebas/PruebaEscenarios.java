@@ -235,6 +235,11 @@ public class PruebaEscenarios {
         // ================================================================
         String fechaConsolidado = LocalDate.now().plusDays(1).toString();
         escenario("E2-01 Consolidado agrega la demanda de arroz de 2 mercados (200 lb)", () -> {
+            Producto arroz = productoDAO.buscarPorNombre("Arroz blanco");
+            int a = plantillas.crear(1, "Consolidado Esc A", fechaConsolidado);
+            int b = plantillas.crear(1, "Consolidado Esc B", fechaConsolidado);
+            plantillas.agregarProducto(a, arroz.getIdProducto(), 100);
+            plantillas.agregarProducto(b, arroz.getIdProducto(), 100);
             var filas = compras.consolidar(fechaConsolidado);
             return filas.stream().filter(f -> "Arroz blanco".equals(f.getProducto()))
                     .anyMatch(f -> f.getTotalSolicitado() == 200.0 && f.getMercados() == 2);

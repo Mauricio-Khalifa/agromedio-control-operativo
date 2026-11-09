@@ -47,6 +47,14 @@ public class CompraServicio {
         return consultaDAO.consolidarDemanda(fechaProgramada);
     }
 
+    /**
+     * Fecha con la que el consolidado debe abrirse por defecto: la mas proxima
+     * que todavia tiene productos pendientes por comprar.
+     */
+    public String fechaConsolidadoDefecto() {
+        return consultaDAO.fechaConsolidadoPendiente();
+    }
+
     /** RF04: registra la compra de los productos marcados para una plantilla. */
     public int registrarCompra(int idPlantilla, String fechaCompra, List<DetalleCompra> items) {
         return registrarCompra(idPlantilla, fechaCompra, items, 0);
@@ -137,6 +145,7 @@ public class CompraServicio {
         compra.setEstado(Compra.REGISTRADA);
         return ConexionBD.enTransaccion(() -> {
             compraDAO.guardar(compra);
+            Set<Integer> plantillasTocadas = new HashSet<>();
             for (DetalleCompra d : items) {
                 d.setIdCompra(compra.getIdCompra());
                 compraDAO.agregarDetalle(d);
@@ -149,12 +158,13 @@ public class CompraServicio {
                         x.setIdDetalleCompra(d.getIdDetalleCompra());
                         x.setCostoAsignado(Math.round(d.getSubtotal() * x.getCantidadAsignada() / d.getCantidadComprada() * 100.0) / 100.0);
                         compraDAO.agregarDistribucion(x);
+                        plantillasTocadas.add(x.getIdPlantilla());
                         asignado += x.getCantidadAsignada();
                     }
                 }
                 if (asignado + 0.0001 < d.getCantidadComprada()) {
                     try (Connection c = ConexionBD.obtener(); PreparedStatement ps = c.prepareStatement(
-                            "SELECT dp.id_plantilla, MAX(dp.cantidad_solicitada - COALESCE(x.comprado, 0)) "
+                            "SELECT dp.id_plantilla, MAX(dp.cantidad_solicitada / CASE WHEN pd.factor_conversion > 0 THEN pd.factor_conversion ELSE 1 END - COALESCE(x.comprado, 0)) "
                             + "FROM detalle_plantilla dp JOIN producto pd ON pd.id_producto = dp.id_producto "
                             + "LEFT JOIN (SELECT dcp.id_plantilla, dc.id_producto, SUM(dcp.cantidad_asignada) AS comprado "
                             + "FROM detalle_compra dc JOIN distribucion_compra dcp ON dcp.id_detalle_compra = dc.id_detalle_compra "
@@ -173,7 +183,9 @@ public class CompraServicio {
                                     DistribucionCompra x = new DistribucionCompra();
                                     x.setIdDetalleCompra(d.getIdDetalleCompra()); x.setIdPlantilla(rs.getInt(1));
                                     x.setCantidadAsignada(cantidad); x.setCostoAsignado(0);
-                                    compraDAO.agregarDistribucion(x); asignado += cantidad;
+                                    compraDAO.agregarDistribucion(x);
+                                    plantillasTocadas.add(rs.getInt(1));
+                                    asignado += cantidad;
                                 }
                             }
                         }
@@ -181,6 +193,12 @@ public class CompraServicio {
                 }
                 if (asignado + 0.0001 < d.getCantidadComprada()) {
                     throw new IllegalArgumentException("La cantidad comprada supera la demanda pendiente del producto.");
+                }
+            }
+            for (int idPlantilla : plantillasTocadas) {
+                PlantillaOperativa p = plantillaDAO.obtener(idPlantilla);
+                if (p != null && PlantillaOperativa.ESTADO_CARGADA.equals(p.getEstado())) {
+                    plantillaDAO.actualizarEstado(idPlantilla, PlantillaOperativa.ESTADO_EN_COMPRA);
                 }
             }
             return compra.getIdCompra();

@@ -303,6 +303,14 @@ CREATE INDEX idx_det_despacho_desp        ON detalle_despacho (id_despacho);
 CREATE INDEX idx_alistamiento_plantilla   ON alistamiento (id_plantilla);
 
 -- ---------------------------------------------------------------------
+-- INDICES DE RENDIMIENTO (Fase 2)
+-- ---------------------------------------------------------------------
+CREATE INDEX IF NOT EXISTS idx_distribucion_plantilla_prod ON distribucion_compra(id_plantilla);
+CREATE INDEX IF NOT EXISTS idx_detalle_compra_prod ON detalle_compra(id_producto);
+CREATE INDEX IF NOT EXISTS idx_detalle_despacho_prod ON detalle_despacho(id_despacho, id_producto);
+CREATE INDEX IF NOT EXISTS idx_detalle_alistamiento_prod ON detalle_alistamiento(id_alistamiento, id_producto);
+
+-- ---------------------------------------------------------------------
 -- VISTAS DE CONSULTA / REPORTES
 -- ---------------------------------------------------------------------
 
@@ -364,32 +372,47 @@ LEFT JOIN (
 
 -- Faltantes acumulados de recepcion (RF06 / RN-06) en unidad de compra.
 -- Una sola fila por detalle de compra: no duplica el faltante cuando hay
--- varias entregas parciales.
+-- varias entregas parciales. En compras consolidadas el faltante se reparte
+-- entre los mercados segun distribucion_compra.
 CREATE VIEW v_faltantes_recepcion AS
+WITH destino AS (
+    SELECT c.id_compra, c.id_plantilla, NULL AS id_detalle_compra, 1.0 AS proporcion
+    FROM compra c WHERE c.id_plantilla IS NOT NULL
+    UNION ALL
+    SELECT c.id_compra, dcp.id_plantilla, dcp.id_detalle_compra,
+           CASE WHEN dc.cantidad_comprada > 0
+                THEN dcp.cantidad_asignada * 1.0 / dc.cantidad_comprada ELSE 0 END
+    FROM compra c
+    JOIN detalle_compra dc ON dc.id_compra = c.id_compra
+    JOIN distribucion_compra dcp ON dcp.id_detalle_compra = dc.id_detalle_compra
+    WHERE c.id_plantilla IS NULL
+)
 SELECT
     MAX(dr.id_recepcion)                AS id_recepcion,
     MAX(r.fecha_recepcion)              AS fecha_recepcion,
     c.id_compra,
-    c.id_plantilla,
+    d.id_plantilla,
     pl.nombre_mercado,
     dc.id_detalle_compra,
     pr.nombre                           AS producto,
     pv.nombre                           AS proveedor,
     umc.abreviatura                     AS unidad_compra,
-    dc.cantidad_comprada,
-    ROUND(COALESCE(SUM(dr.cantidad_recibida), 0), 2) AS cantidad_recibida,
-    ROUND(MAX(0, dc.cantidad_comprada - COALESCE(SUM(dr.cantidad_recibida), 0)), 2) AS cantidad_faltante
+    ROUND(dc.cantidad_comprada * d.proporcion, 2) AS cantidad_comprada,
+    ROUND(COALESCE(SUM(dr.cantidad_recibida), 0) * d.proporcion, 2) AS cantidad_recibida,
+    ROUND(MAX(0, dc.cantidad_comprada - COALESCE(SUM(dr.cantidad_recibida), 0)) * d.proporcion, 2) AS cantidad_faltante
 FROM detalle_compra dc
-JOIN compra c          ON c.id_compra = dc.id_compra
-JOIN plantilla_operativa pl ON pl.id_plantilla = c.id_plantilla
-JOIN producto pr       ON pr.id_producto = dc.id_producto
-JOIN proveedor pv      ON pv.id_proveedor = dc.id_proveedor
-JOIN unidad_medida umc ON umc.id_unidad = pr.id_unidad_compra
+JOIN compra c              ON c.id_compra = dc.id_compra
+JOIN destino d             ON d.id_compra = c.id_compra
+                          AND (d.id_detalle_compra IS NULL OR d.id_detalle_compra = dc.id_detalle_compra)
+JOIN plantilla_operativa pl ON pl.id_plantilla = d.id_plantilla
+JOIN producto pr           ON pr.id_producto = dc.id_producto
+JOIN proveedor pv          ON pv.id_proveedor = dc.id_proveedor
+JOIN unidad_medida umc     ON umc.id_unidad = pr.id_unidad_compra
 LEFT JOIN detalle_recepcion dr ON dr.id_detalle_compra = dc.id_detalle_compra
-LEFT JOIN recepcion r           ON r.id_recepcion = dr.id_recepcion
+LEFT JOIN recepcion r          ON r.id_recepcion = dr.id_recepcion
 WHERE EXISTS (SELECT 1 FROM recepcion r2 WHERE r2.id_compra = c.id_compra)
-GROUP BY dc.id_detalle_compra, c.id_compra, c.id_plantilla, pl.nombre_mercado,
-         pr.nombre, pv.nombre, umc.abreviatura, dc.cantidad_comprada
+GROUP BY dc.id_detalle_compra, c.id_compra, d.id_plantilla, pl.nombre_mercado,
+         pr.nombre, pv.nombre, umc.abreviatura, dc.cantidad_comprada, d.proporcion
 HAVING COALESCE(SUM(dr.cantidad_recibida), 0) < dc.cantidad_comprada;
 
 -- Avance del despacho por mercado (RF10)

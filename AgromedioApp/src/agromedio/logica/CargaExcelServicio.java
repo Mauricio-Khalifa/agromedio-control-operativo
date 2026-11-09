@@ -145,10 +145,17 @@ public class CargaExcelServicio {
                 res.getErrores().add("El archivo no tiene datos.");
                 return;
             }
-            String encabezado = textoCelda(hoja.getRow(0).getCell(0)).toLowerCase(Locale.ROOT);
-            String encabezadoProducto = hoja.getRow(0).getCell(6) == null ? ""
-                    : textoCelda(hoja.getRow(0).getCell(6)).toLowerCase(Locale.ROOT);
-            if (!encabezado.contains("cliente") || !encabezadoProducto.contains("producto")) {
+            Row filaEncabezado = hoja.getRow(0);
+            if (filaEncabezado == null) {
+                res.getErrores().add("El archivo no tiene encabezados.");
+                return;
+            }
+            List<String> celdasEncabezado = new ArrayList<>();
+            for (int i = 0; i < filaEncabezado.getLastCellNum(); i++) {
+                celdasEncabezado.add(textoCelda(filaEncabezado.getCell(i)));
+            }
+            Map<String, Integer> col = columnas(celdasEncabezado);
+            if (!columnasCompletas(col)) {
                 res.getErrores().add(mensajeFormato());
                 return;
             }
@@ -160,15 +167,15 @@ public class CargaExcelServicio {
                 }
                 res.setLineasLeidas(res.getLineasLeidas() + 1);
                 procesarFila(res, i + 1,
-                        textoCelda(fila.getCell(0)).trim(),
-                        textoCelda(fila.getCell(1)).trim(),
-                        textoCelda(fila.getCell(2)).trim(),
-                        textoCelda(fila.getCell(3)).trim(),
-                        textoCelda(fila.getCell(4)).trim(),
-                        textoCelda(fila.getCell(5)).trim(),
-                        textoCelda(fila.getCell(6)).trim(),
-                         textoCelda(fila.getCell(7)).trim(),
-                         textoCelda(fila.getCell(8)).trim(),
+                        celda(fila, col.get("cliente")),
+                        celda(fila, col.get("contacto")),
+                        celda(fila, col.get("telefono")),
+                        celda(fila, col.get("mercado")),
+                        col.containsKey("cantMercados") ? celda(fila, col.get("cantMercados")) : "1",
+                        celda(fila, col.get("fecha")),
+                        celda(fila, col.get("producto")),
+                        celda(fila, col.get("cantidad")),
+                        col.containsKey("unidad") ? celda(fila, col.get("unidad")) : "",
                         productos, clientes, plantillas, detalles);
             }
         }
@@ -197,9 +204,8 @@ public class CargaExcelServicio {
             return;
         }
         String[] encabezado = filas.get(0);
-        if (encabezado.length < 7
-                || !valor(encabezado, 0).toLowerCase(Locale.ROOT).contains("cliente")
-                || !valor(encabezado, 6).toLowerCase(Locale.ROOT).contains("producto")) {
+        Map<String, Integer> col = columnas(java.util.Arrays.asList(encabezado));
+        if (!columnasCompletas(col)) {
             res.getErrores().add(mensajeFormato());
             return;
         }
@@ -208,8 +214,11 @@ public class CargaExcelServicio {
             String[] fila = filas.get(i);
             res.setLineasLeidas(res.getLineasLeidas() + 1);
             procesarFila(res, i + 1,
-                    valor(fila, 0), valor(fila, 1), valor(fila, 2), valor(fila, 3),
-                    valor(fila, 4), valor(fila, 5), valor(fila, 6), valor(fila, 7), valor(fila, 8),
+                    campo(fila, col, "cliente"), campo(fila, col, "contacto"),
+                    campo(fila, col, "telefono"), campo(fila, col, "mercado"),
+                    col.containsKey("cantMercados") ? campo(fila, col, "cantMercados") : "1",
+                    campo(fila, col, "fecha"), campo(fila, col, "producto"),
+                    campo(fila, col, "cantidad"), campo(fila, col, "unidad"),
                     productos, clientes, plantillas, detalles);
         }
     }
@@ -299,8 +308,8 @@ public class CargaExcelServicio {
         List<DetallePlantilla> listaDetalle = detalles.get(clavePlantilla);
         for (DetallePlantilla existente : listaDetalle) {
             if (existente.getIdProducto() == producto.getIdProducto()) {
-                // Una fila repetida no se suma: el archivo debe contener una sola
-                // solicitud por producto y presentación.
+                double acumulada = existente.getCantidadSolicitada() + cantidad.valor * cantidadMercados;
+                existente.setCantidadSolicitada(Math.round(acumulada * 1000.0) / 1000.0);
                 return;
             }
         }
@@ -352,6 +361,50 @@ public class CargaExcelServicio {
 
     private static String mensajeFormato() {
         return "Formato no reconocido. Se esperaba: Cliente | Contacto | Telefono | Mercado | Fecha | Producto | Cantidad";
+    }
+
+    /** Ubica cada columna por su nombre; admite el formato de 7 u 9 columnas. */
+    private static Map<String, Integer> columnas(List<String> encabezado) {
+        Map<String, Integer> indice = new HashMap<>();
+        for (int i = 0; i < encabezado.size(); i++) {
+            String nombre = normalizar(encabezado.get(i));
+            if (nombre.isEmpty()) continue;
+            if (nombre.contains("mercados")) {
+                indice.putIfAbsent("cantMercados", i);
+            } else if (nombre.contains("mercado")) {
+                indice.putIfAbsent("mercado", i);
+            } else if (nombre.contains("cliente")) {
+                indice.putIfAbsent("cliente", i);
+            } else if (nombre.contains("contacto")) {
+                indice.putIfAbsent("contacto", i);
+            } else if (nombre.contains("telefono")) {
+                indice.putIfAbsent("telefono", i);
+            } else if (nombre.contains("fecha")) {
+                indice.putIfAbsent("fecha", i);
+            } else if (nombre.contains("producto")) {
+                indice.putIfAbsent("producto", i);
+            } else if (nombre.contains("unidad")) {
+                indice.putIfAbsent("unidad", i);
+            } else if (nombre.contains("cantidad")) {
+                indice.putIfAbsent("cantidad", i);
+            }
+        }
+        return indice;
+    }
+
+    private static boolean columnasCompletas(Map<String, Integer> indice) {
+        return indice.containsKey("cliente") && indice.containsKey("mercado")
+                && indice.containsKey("fecha") && indice.containsKey("producto")
+                && indice.containsKey("cantidad");
+    }
+
+    private static String celda(Row fila, Integer indice) {
+        return indice == null ? "" : textoCelda(fila.getCell(indice)).trim();
+    }
+
+    private static String campo(String[] fila, Map<String, Integer> indice, String nombre) {
+        Integer i = indice.get(nombre);
+        return i == null ? "" : valor(fila, i);
     }
 
     private static String valor(String[] fila, int indice) {
@@ -583,6 +636,24 @@ public class CargaExcelServicio {
     private static String textoCelda(Cell celda) {
         if (celda == null) {
             return "";
+        }
+        if (celda.getCellType() == CellType.FORMULA) {
+            // Si es una fórmula, intentamos obtener el valor calculado
+            try {
+                switch (celda.getCachedFormulaResultType()) {
+                    case NUMERIC:
+                        double d = celda.getNumericCellValue();
+                        return (d == Math.rint(d)) ? String.valueOf((long) d) : String.valueOf(d);
+                    case STRING:
+                        return celda.getStringCellValue();
+                    case BOOLEAN:
+                        return String.valueOf(celda.getBooleanCellValue());
+                    default:
+                        return "";
+                }
+            } catch (Exception e) {
+                return "";
+            }
         }
         if (celda.getCellType() == CellType.NUMERIC) {
             if (org.apache.poi.ss.usermodel.DateUtil.isCellDateFormatted(celda)) {

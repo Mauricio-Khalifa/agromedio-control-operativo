@@ -205,6 +205,17 @@ public class PruebaLogica {
         // ---------------- RF03: consolidacion de demanda ----------------
         verificar("RF03: consolidado de arroz = 200 lb, 2 mercados, pendiente 100", () -> {
             String fecha = java.time.LocalDate.now().plusDays(1).toString();
+            PlantillaServicio ps = new PlantillaServicio();
+            Producto arroz = productos.buscarPorNombre("Arroz blanco");
+            int mercadoA = ps.crear(1, "Consolidado A", fecha);
+            int mercadoB = ps.crear(1, "Consolidado B", fecha);
+            ps.agregarProducto(mercadoA, arroz.getIdProducto(), 100);
+            ps.agregarProducto(mercadoB, arroz.getIdProducto(), 100);
+            // 1 quintal de arroz = 100 lb compradas para el mercado A.
+            List<DetalleCompra> items = new ArrayList<>();
+            items.add(detalleCompra(mercadoA, arroz, 1, 1));
+            compras.registrarCompra(mercadoA, null, items);
+
             List<FilaConsolidado> filas = compras.consolidar(fecha);
             return filas.stream()
                     .filter(f -> f.getProducto().equals("Arroz blanco"))
@@ -317,8 +328,10 @@ public class PruebaLogica {
             FilaProgreso fila = abiertas.stream()
                     .filter(f -> f.getIdPlantilla() == idPlantilla[0])
                     .findFirst().orElse(null);
+            // La recepcion cerrada no adelanta la etapa: el panel solo muestra
+            // ALISTANDO cuando existe un alistamiento iniciado.
             return fila != null
-                    && PlantillaOperativa.ESTADO_ALISTANDO.equals(fila.getEstado())
+                    && PlantillaOperativa.ESTADO_RECIBIENDO.equals(fila.getEstado())
                     && fila.getPorcentajeCompra() == 100.0
                     && fila.getPorcentajeRecepcion() == 100.0;
         });
@@ -564,7 +577,7 @@ public class PruebaLogica {
         verificar("RN-12: el servicio no elimina una plantilla con historico", () -> {
             PlantillaServicio ps = new PlantillaServicio();
             try {
-                ps.eliminar(1);
+                ps.eliminar(idPlantilla[0]);
                 return false;
             } catch (IllegalStateException e) {
                 return e.getMessage().contains("compras, recepciones, alistamientos o despachos");

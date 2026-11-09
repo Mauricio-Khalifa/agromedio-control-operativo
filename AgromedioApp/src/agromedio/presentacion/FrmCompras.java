@@ -36,7 +36,6 @@ import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -113,7 +112,8 @@ public class FrmCompras extends JInternalFrame implements EdicionPendiente {
         JPanel norte = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 4));
         norte.setOpaque(false);
         norte.add(new JLabel("Fecha programada"));
-        txtFecha.setText(LocalDate.now().toString());
+        // Precarga la fecha mas proxima con demanda pendiente (si la hay).
+        txtFecha.setText(servicio.fechaConsolidadoDefecto());
         txtFecha.setPreferredSize(new java.awt.Dimension(150, 34));
         norte.add(txtFecha);
         JButton btnActualizar = UiUtil.botonSecundario("Actualizar consolidado",
@@ -492,9 +492,16 @@ public class FrmCompras extends JInternalFrame implements EdicionPendiente {
                         f.getTotalComprado(), f.getMercados(), f.getNombresMercados(),
                         f.getPendiente()});
             }
-            lblConsolidado.setText(consolidado.size() + " producto(s) pendiente(s) en el consolidado");
             if (consolidado.isEmpty()) {
-                modeloConsolidado.addRow(new Object[]{"(sin productos pendientes para la fecha indicada)", "", "", "", "", ""});
+                modeloConsolidado.addRow(new Object[]{
+                        "(sin productos pendientes para la fecha indicada)", "", "", "", "", "", ""});
+                String sugerida = servicio.fechaConsolidadoDefecto();
+                String escrita = txtFecha.getText().trim();
+                lblConsolidado.setText(sugerida != null && !sugerida.equals(escrita)
+                        ? "0 producto(s) pendientes el " + escrita + " - hay demanda pendiente el " + sugerida
+                        : "0 producto(s) pendiente(s) en el consolidado");
+            } else {
+                lblConsolidado.setText(consolidado.size() + " producto(s) pendiente(s) en el consolidado");
             }
             tablaConsolidado.clearSelection();
             actualizarBotonPreparar();

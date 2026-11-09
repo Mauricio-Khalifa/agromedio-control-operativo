@@ -43,6 +43,9 @@ public final class GraficoBarrasEtapas extends JComponent {
                 g.drawString(barra.nombre(), 0, y + 18);
                 g.setColor(Tema.SUPERFICIE_ALT);
                 g.fillRoundRect(inicioBarra, y + 5, anchoBarra, 14, 7, 7);
+                g.setColor(Tema.BORDE);
+                g.drawRoundRect(inicioBarra, y + 5, anchoBarra, 14, 7, 7);
+                
                 int ancho = barra.valor() == 0 ? 0 : Math.max(8, anchoBarra * barra.valor() / max);
                 g.setColor(barra.color());
                 g.fillRoundRect(inicioBarra, y + 5, ancho, 14, 7, 7);

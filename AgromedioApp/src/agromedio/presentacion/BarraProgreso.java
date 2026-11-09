@@ -38,12 +38,18 @@ public class BarraProgreso extends JComponent {
             g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             int alto = Math.min(10, getHeight() - 4);
             int y = (getHeight() - alto) / 2;
-            int ancho = Math.max(1, getWidth());
-            g.setColor(getBackground() == null ? Tema.SUPERFICIE_ALT : getBackground());
+            int ancho = Math.max(1, getWidth() - 1);
+            
+            // Fondo de la barra con borde sutil para delimitar
+            g.setColor(Tema.SUPERFICIE_ALT);
             g.fill(new RoundRectangle2D.Double(0, y, ancho, alto, alto, alto));
+            g.setColor(Tema.BORDE);
+            g.draw(new RoundRectangle2D.Double(0, y, ancho, alto, alto, alto));
+
             if (valor > 0) {
                 g.setColor(color);
-                g.fill(new RoundRectangle2D.Double(0, y, Math.max(alto, ancho * valor / 100.0), alto, alto, alto));
+                double anchoRelleno = Math.max(alto, ancho * valor / 100.0);
+                g.fill(new RoundRectangle2D.Double(0, y, anchoRelleno, alto, alto, alto));
             }
         } finally {
             g.dispose();

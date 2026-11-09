@@ -5,6 +5,7 @@ import agromedio.datos.ClienteDAOSqlite;
 import agromedio.datos.PlantillaDAO;
 import agromedio.datos.PlantillaDAOSqlite;
 import agromedio.logica.PlantillaServicio;
+import agromedio.logica.ServiceFactory;
 import agromedio.modelo.Cliente;
 import agromedio.modelo.PlantillaOperativa;
 
@@ -32,9 +33,9 @@ import java.util.List;
 /** Panel de plantillas operativas: alta manual y acceso al detalle. */
 public class FrmPlantillas extends JInternalFrame {
 
+    private final PlantillaServicio servicio = ServiceFactory.getPlantillaServicio();
     private final PlantillaDAO plantillaDAO = new PlantillaDAOSqlite();
     private final ClienteDAO clienteDAO = new ClienteDAOSqlite();
-    private final PlantillaServicio servicio = new PlantillaServicio();
 
     private final DefaultTableModel modelo;
     private final JTable tabla;

@@ -4,6 +4,7 @@ import agromedio.datos.PlantillaDAO;
 import agromedio.datos.PlantillaDAOSqlite;
 import agromedio.modelo.PlantillaOperativa;
 import agromedio.logica.ReporteServicio;
+import agromedio.logica.ServiceFactory;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -25,7 +26,7 @@ import java.time.LocalDate;
 /** Reportes operativos listos para imprimir (faltantes, saldos, consolidado, avance). */
 public class FrmReportes extends JInternalFrame {
 
-    private final ReporteServicio servicio = new ReporteServicio();
+    private final ReporteServicio servicio = ServiceFactory.getReporteServicio();
     private final PlantillaDAO plantillaDAO = new PlantillaDAOSqlite();
     private final JTextArea area = new JTextArea();
     private final JTextField txtFecha = UiUtil.campo();

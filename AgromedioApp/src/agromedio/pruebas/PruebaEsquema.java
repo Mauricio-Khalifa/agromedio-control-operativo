@@ -28,8 +28,10 @@ public class PruebaEsquema {
         ConexionBD.inicializar();
 
         try (Connection c = ConexionBD.obtener(); Statement st = c.createStatement()) {
-            verificar("16 tablas creadas", () -> contar(st,
-                    "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'") == 16);
+            sembrarEscenario(st);
+
+            verificar("17 tablas creadas", () -> contar(st,
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'") == 17);
 
             verificar("6 tablas del ciclo + catalogos con datos", () ->
                     contar(st, "SELECT COUNT(*) FROM detalle_plantilla") == 13);
@@ -245,6 +247,60 @@ public class PruebaEsquema {
         if (fallos > 0) {
             System.exit(1);
         }
+    }
+
+    /**
+     * Datos de apoyo autocontenidos. Antes la suite dependia de un seed
+     * operativo que ya no existe (seed.sql es solo de catalogos), por lo que
+     * se construye aqui el escenario minimo que validan las aserciones.
+     */
+    private static void sembrarEscenario(Statement st) throws SQLException {
+        // Plantilla 1: ciclo completo con faltante de leche (77 solicitado / 70 despachado).
+        st.executeUpdate("INSERT INTO plantilla_operativa "
+                + "(id_plantilla, id_cliente, nombre_mercado, fecha_programada, estado) "
+                + "VALUES (1, 1, 'MERCADO ESQUEMA', date('now','localtime'), 'DESPACHADA')");
+        // Plantillas 2 y 3: demanda de arroz para manana (consolidado RF03).
+        st.executeUpdate("INSERT INTO plantilla_operativa "
+                + "(id_plantilla, id_cliente, nombre_mercado, fecha_programada, estado) VALUES "
+                + "(2, 1, 'MERCADO ARROZ A', date('now','localtime','+1 day'), 'CARGADA'), "
+                + "(3, 1, 'MERCADO ARROZ B', date('now','localtime','+1 day'), 'CARGADA')");
+
+        // 13 lineas de detalle: 11 en la plantilla 1 y una por mercado de arroz.
+        st.executeUpdate("INSERT INTO detalle_plantilla (id_plantilla, id_producto, cantidad_solicitada) VALUES "
+                + "(1, 1, 77), (1, 2, 10), (1, 3, 150), (1, 4, 10), (1, 6, 10), (1, 7, 10), "
+                + "(1, 8, 10), (1, 9, 10), (1, 10, 10), (1, 11, 10), (1, 12, 10), "
+                + "(2, 5, 100), (3, 5, 100)");
+
+        // Compra recibida con dos detalles y su distribucion por mercado.
+        st.executeUpdate("INSERT INTO compra "
+                + "(id_compra, id_plantilla, id_proveedor, fecha_compra, estado, costo_total) "
+                + "VALUES (1, 1, 1, date('now','localtime'), 'RECIBIDA', 0)");
+        st.executeUpdate("INSERT INTO detalle_compra "
+                + "(id_detalle_compra, id_compra, id_producto, id_proveedor, cantidad_comprada) VALUES "
+                + "(1, 1, 1, 1, 77), (2, 1, 3, 1, 150)");
+        st.executeUpdate("INSERT INTO distribucion_compra "
+                + "(id_detalle_compra, id_plantilla, cantidad_asignada) VALUES (1, 1, 77), (2, 1, 150)");
+
+        // Recepcion de 70/77 de leche: el trigger calcula un faltante de 7.
+        st.executeUpdate("INSERT INTO recepcion (id_recepcion, id_compra, fecha_recepcion, observaciones) "
+                + "VALUES (1, 1, date('now','localtime'), 'Entrega inicial')");
+        st.executeUpdate("INSERT INTO detalle_recepcion "
+                + "(id_detalle_recepcion, id_recepcion, id_detalle_compra, cantidad_recibida, cantidad_faltante) "
+                + "VALUES (1, 1, 1, 70, 0), (2, 1, 2, 150, 0)");
+
+        // Alistamiento completo y despacho con 5 items verificados.
+        st.executeUpdate("INSERT INTO alistamiento "
+                + "(id_alistamiento, id_plantilla, fecha_alistamiento, estado) "
+                + "VALUES (1, 1, date('now','localtime'), 'COMPLETO')");
+        st.executeUpdate("INSERT INTO detalle_alistamiento "
+                + "(id_alistamiento, id_producto, cantidad_alistada, completado) VALUES (1, 1, 77, 1)");
+        st.executeUpdate("INSERT INTO despacho "
+                + "(id_despacho, id_plantilla, fecha_despacho, estado, novedades) "
+                + "VALUES (1, 1, date('now','localtime'), 'DESPACHADA', 'Faltante de leche aceptado')");
+        st.executeUpdate("INSERT INTO detalle_despacho "
+                + "(id_despacho, id_producto, cantidad_despachada, verificado, faltante_aceptado) VALUES "
+                + "(1, 1, 70, 1, 1), (1, 2, 10, 1, 0), (1, 3, 150, 1, 0), "
+                + "(1, 4, 10, 1, 0), (1, 6, 10, 1, 0)");
     }
 
     private static int contar(Statement st, String sql) throws SQLException {

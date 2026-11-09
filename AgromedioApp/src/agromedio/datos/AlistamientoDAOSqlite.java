@@ -76,25 +76,13 @@ public class AlistamientoDAOSqlite implements AlistamientoDAO {
     private static final String DETALLE_SQL =
             "SELECT da.id_detalle_alistamiento, da.id_alistamiento, da.id_producto, da.cantidad_alistada, da.completado, "
           + "pr.nombre, um.abreviatura, "
-          + "(SELECT dp.cantidad_solicitada FROM detalle_plantilla dp "
-          + " WHERE dp.id_plantilla = a.id_plantilla AND dp.id_producto = da.id_producto) AS solicitado, "
-          + "(SELECT ROUND(COALESCE(SUM(dr.cantidad_recibida * pr2.factor_conversion * "
-          + "CASE WHEN dcp.id_distribucion IS NULL THEN 1.0 "
-          + "ELSE dcp.cantidad_asignada / dc.cantidad_comprada END), 0), 2) "
-          + " FROM compra c2 "
-          + " JOIN detalle_compra dc ON dc.id_compra = c2.id_compra "
-          + " JOIN detalle_recepcion dr ON dr.id_detalle_compra = dc.id_detalle_compra "
-          + " JOIN producto pr2 ON pr2.id_producto = dc.id_producto "
-          + " LEFT JOIN distribucion_compra dcp ON dcp.id_detalle_compra = dc.id_detalle_compra "
-          + "      AND dcp.id_plantilla = a.id_plantilla "
-          + " WHERE dc.id_producto = da.id_producto AND c2.estado <> 'ANULADA' "
-          + " AND (dcp.id_distribucion IS NOT NULL OR (c2.id_plantilla = a.id_plantilla "
-          + "      AND NOT EXISTS (SELECT 1 FROM distribucion_compra dx "
-          + "          WHERE dx.id_detalle_compra = dc.id_detalle_compra)))) AS recibido "
+          + "COALESCE(vs.solicitado, 0) AS solicitado, "
+          + "COALESCE(vs.recibido, 0) AS recibido "
           + "FROM detalle_alistamiento da "
           + "JOIN alistamiento a ON a.id_alistamiento = da.id_alistamiento "
           + "JOIN producto pr ON pr.id_producto = da.id_producto "
-          + "JOIN unidad_medida um ON um.id_unidad = pr.id_unidad_despacho ";
+          + "JOIN unidad_medida um ON um.id_unidad = pr.id_unidad_despacho "
+          + "LEFT JOIN v_saldo_plantilla vs ON vs.id_plantilla = a.id_plantilla AND vs.id_producto = da.id_producto ";
 
     @Override
     public List<DetalleAlistamiento> listarDetalle(int idAlistamiento) {

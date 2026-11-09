@@ -5,6 +5,7 @@ import agromedio.datos.PlantillaDAOSqlite;
 import agromedio.datos.ProductoDAO;
 import agromedio.datos.ProductoDAOSqlite;
 import agromedio.logica.AlistamientoServicio;
+import agromedio.logica.ServiceFactory;
 import agromedio.modelo.Alistamiento;
 import agromedio.modelo.DetalleAlistamiento;
 import agromedio.modelo.PlantillaOperativa;
@@ -34,7 +35,7 @@ import java.util.Map;
 /** Modulo 3 - Produccion / Alistamiento: fraccionamiento (RF07) y avance (RF08). */
 public class FrmAlistamiento extends JInternalFrame {
 
-    private final AlistamientoServicio servicio = new AlistamientoServicio();
+    private final AlistamientoServicio servicio = ServiceFactory.getAlistamientoServicio();
     private final PlantillaDAO plantillaDAO = new PlantillaDAOSqlite();
     private final ProductoDAO productoDAO = new ProductoDAOSqlite();
 

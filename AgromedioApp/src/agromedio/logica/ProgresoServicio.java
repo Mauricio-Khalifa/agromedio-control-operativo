@@ -42,17 +42,22 @@ public class ProgresoServicio {
         for (FilaProgreso fila : filas) {
             if (fila == null) continue;
             resumen.setPlantillasAbiertas(resumen.getPlantillasAbiertas() + 1);
-            switch (fila.getEstado()) {
-                case "CARGADA" -> resumen.setCargadas(resumen.getCargadas() + 1);
-                case "EN_COMPRA" -> resumen.setEnCompra(resumen.getEnCompra() + 1);
-                case "RECIBIENDO" -> resumen.setRecibiendo(resumen.getRecibiendo() + 1);
-                case "ALISTANDO" -> resumen.setAlistando(resumen.getAlistando() + 1);
-                case "LISTA" -> resumen.setListas(resumen.getListas() + 1);
-                default -> { }
-            }
+            
+            // Determinamos la etapa principal del proceso
             if ("EN_VERIFICACION".equals(fila.getEstadoDespacho())) {
                 resumen.setDespachosEnVerificacion(resumen.getDespachosEnVerificacion() + 1);
+            } else {
+                String estado = fila.getEstado() != null ? fila.getEstado().trim().toUpperCase() : "";
+                switch (estado) {
+                    case "CARGADA" -> resumen.setCargadas(resumen.getCargadas() + 1);
+                    case "EN_COMPRA" -> resumen.setEnCompra(resumen.getEnCompra() + 1);
+                    case "RECIBIENDO" -> resumen.setRecibiendo(resumen.getRecibiendo() + 1);
+                    case "ALISTANDO" -> resumen.setAlistando(resumen.getAlistando() + 1);
+                    case "LISTA" -> resumen.setListas(resumen.getListas() + 1);
+                    default -> System.err.println("Estado de progreso desconocido: '" + estado + "'");
+                }
             }
+            
             if (fila.isTieneFaltante()) {
                 resumen.setRecepcionesConFaltante(resumen.getRecepcionesConFaltante() + 1);
             }

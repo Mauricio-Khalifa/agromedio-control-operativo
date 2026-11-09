@@ -2,9 +2,12 @@ package agromedio.logica;
 
 import agromedio.datos.AlistamientoDAO;
 import agromedio.datos.AlistamientoDAOSqlite;
+import agromedio.datos.ConsultaDAO;
 import agromedio.datos.ConexionBD;
 import agromedio.datos.PlantillaDAO;
 import agromedio.datos.PlantillaDAOSqlite;
+import agromedio.datos.ProductoDAO;
+import agromedio.datos.ProductoDAOSqlite;
 import agromedio.modelo.Alistamiento;
 import agromedio.modelo.DetalleAlistamiento;
 import agromedio.modelo.DetallePlantilla;
@@ -21,14 +24,18 @@ public class AlistamientoServicio {
 
     private final AlistamientoDAO alistamientoDAO;
     private final PlantillaDAO plantillaDAO;
+    private final ConsultaDAO consultaDAO;
+    private final ProductoDAO productoDAO;
 
     public AlistamientoServicio() {
-        this(new AlistamientoDAOSqlite(), new PlantillaDAOSqlite());
+        this(new AlistamientoDAOSqlite(), new PlantillaDAOSqlite(), new agromedio.datos.ConsultaDAOSqlite(), new ProductoDAOSqlite());
     }
 
-    public AlistamientoServicio(AlistamientoDAO alistamientoDAO, PlantillaDAO plantillaDAO) {
+    public AlistamientoServicio(AlistamientoDAO alistamientoDAO, PlantillaDAO plantillaDAO, ConsultaDAO consultaDAO, ProductoDAO productoDAO) {
         this.alistamientoDAO = alistamientoDAO;
         this.plantillaDAO = plantillaDAO;
+        this.consultaDAO = consultaDAO;
+        this.productoDAO = productoDAO;
     }
 
     /** Inicia (o retoma) el alistamiento de una plantilla. RF07. */
@@ -53,14 +60,38 @@ public class AlistamientoServicio {
         a.setIdPlantilla(idPlantilla);
         a.setFechaAlistamiento(LocalDate.now().toString());
         a.setEstado(Alistamiento.EN_PROCESO);
+
+        // Productos con faltante de recepcion: se alistan por lo realmente recibido
+        // (RN-07/RN-08). Un producto sin recepcion queda pendiente, no completado.
+        java.util.Map<Integer, Boolean> productosConFaltante = new java.util.HashMap<>();
+        for (agromedio.modelo.FilaFaltante f : consultaDAO.faltantesRecepcion()) {
+            if (f.getIdPlantilla() == idPlantilla) {
+                agromedio.modelo.Producto p = productoDAO.buscarPorNombre(f.getProducto());
+                if (p != null) {
+                    productosConFaltante.put(p.getIdProducto(), true);
+                }
+            }
+        }
+        java.util.Map<Integer, Double> recibidoPorProducto = new java.util.HashMap<>();
+        for (agromedio.modelo.FilaSaldo s : consultaDAO.saldoPlantilla(idPlantilla)) {
+            recibidoPorProducto.put(s.getIdProducto(), s.getRecibido());
+        }
+
         return ConexionBD.enTransaccion(() -> {
             alistamientoDAO.guardar(a);
             for (DetallePlantilla dp : plantillaDAO.listarDetalle(idPlantilla)) {
                 DetalleAlistamiento da = new DetalleAlistamiento();
                 da.setIdAlistamiento(a.getIdAlistamiento());
                 da.setIdProducto(dp.getIdProducto());
-                da.setCantidadAlistada(0);
-                da.setCompletado(false);
+
+                boolean tieneFaltante = productosConFaltante.getOrDefault(dp.getIdProducto(), false);
+                double recibido = Math.min(dp.getCantidadSolicitada(),
+                        recibidoPorProducto.getOrDefault(dp.getIdProducto(), 0.0));
+                boolean alistarParcial = tieneFaltante && recibido > EPS;
+
+                da.setCantidadAlistada(alistarParcial ? recibido : 0);
+                da.setCompletado(alistarParcial);
+
                 alistamientoDAO.agregarDetalle(da);
             }
             plantillaDAO.actualizarEstado(idPlantilla, PlantillaOperativa.ESTADO_ALISTANDO);

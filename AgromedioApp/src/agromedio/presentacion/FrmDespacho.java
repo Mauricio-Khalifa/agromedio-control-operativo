@@ -3,6 +3,7 @@ package agromedio.presentacion;
 import agromedio.datos.PlantillaDAO;
 import agromedio.datos.PlantillaDAOSqlite;
 import agromedio.logica.DespachoServicio;
+import agromedio.logica.ServiceFactory;
 import agromedio.modelo.DetalleDespacho;
 import agromedio.modelo.Despacho;
 import agromedio.modelo.PlantillaOperativa;
@@ -36,7 +37,7 @@ public class FrmDespacho extends JInternalFrame {
     private static final int COL_VERIFICADO = 4;
     private static final int COL_FALTANTE = 5;
 
-    private final DespachoServicio servicio = new DespachoServicio();
+    private final DespachoServicio servicio = ServiceFactory.getDespachoServicio();
     private final PlantillaDAO plantillaDAO = new PlantillaDAOSqlite();
 
     private final JComboBox<PlantillaOperativa> cmbPlantilla = new JComboBox<>();

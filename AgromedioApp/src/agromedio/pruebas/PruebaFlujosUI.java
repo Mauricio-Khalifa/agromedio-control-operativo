@@ -72,6 +72,8 @@ public class PruebaFlujosUI {
 
         int idAlistando = prepararAlistando();
         int idLista = prepararLista();
+        prepararConsolidado();
+        int idCompraSeed = prepararCompraPendiente();
 
         iniciarDismisser();
 
@@ -79,7 +81,7 @@ public class PruebaFlujosUI {
             FrmCompras f = new FrmCompras();
             try {
                 JComboBox<?> combo = buscar(f.getContentPane(), JComboBox.class, c -> c.getItemCount() > 0);
-                JTable tabla = tablaDeColumnas(f.getContentPane(), 6);
+                JTable tabla = tablaDeColumnas(f.getContentPane(), 7);
                 JButton actualizar = boton(f.getContentPane(), "Actualizar consolidado");
                 if (actualizar != null) actualizar.doClick();
                 return combo != null && tabla != null && tabla.getRowCount() >= 1;
@@ -100,7 +102,6 @@ public class PruebaFlujosUI {
             }
         });
 
-        int idCompraSeed = compraPendienteSeed();
         escenarioUI("UI-03 Recepcion: registrar una entrega descuenta el faltante", () -> {
             FrmRecepcion f = new FrmRecepcion();
             try {
@@ -273,9 +274,27 @@ public class PruebaFlujosUI {
         return id;
     }
 
-    private static int compraPendienteSeed() {
-        Compra c = new RecepcionServicio().comprasPendientes().get(0);
-        return c.getIdCompra();
+    /**
+     * Plantilla con demanda para la fecha de hoy: alimenta el consolidado
+     * (RF03) sin depender de datos de seed.
+     */
+    private static int prepararConsolidado() {
+        PlantillaServicio pl = new PlantillaServicio();
+        Producto leche = leche();
+        int id = pl.crear(1, "UI Mercado Consolidado", LocalDate.now().toString());
+        pl.agregarProducto(id, leche.getIdProducto(), 50);
+        return id;
+    }
+
+    /** Compra registrada y aun no recibida: alimenta la recepcion (RF05). */
+    private static int prepararCompraPendiente() {
+        PlantillaServicio pl = new PlantillaServicio();
+        CompraServicio co = new CompraServicio();
+        Producto leche = leche();
+        int id = pl.crear(1, "UI Mercado Pendiente", LocalDate.now().plusDays(82).toString());
+        pl.agregarProducto(id, leche.getIdProducto(), 30);
+        co.registrarCompra(id, null, List.of(item(leche, 30)));
+        return co.comprasDe(id).get(0).getIdCompra();
     }
 
     // ------------------------------------------------------------------

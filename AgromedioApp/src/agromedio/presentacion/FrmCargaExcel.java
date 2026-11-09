@@ -2,6 +2,7 @@ package agromedio.presentacion;
 
 import agromedio.logica.CargaExcelServicio;
 import agromedio.logica.ResultadoCarga;
+import agromedio.logica.ServiceFactory;
 
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -23,7 +24,7 @@ import java.util.concurrent.ExecutionException;
 /** Modulo 0 - Carga de instrucciones administrativas desde Excel o archivos planos (RF01 - RF02). */
 public class FrmCargaExcel extends JInternalFrame {
 
-    private final CargaExcelServicio servicio = new CargaExcelServicio();
+    private final CargaExcelServicio servicio = ServiceFactory.getCargaExcelServicio();
     private final JTextArea areaResultado = new JTextArea();
     private final JLabel lblArchivo = new JLabel("Ningún archivo seleccionado");
     private final JButton btnSeleccionar = UiUtil.botonSecundario("Seleccionar archivo",

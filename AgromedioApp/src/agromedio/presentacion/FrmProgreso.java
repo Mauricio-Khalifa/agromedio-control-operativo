@@ -32,20 +32,22 @@ import java.util.ArrayList;
 public class FrmProgreso extends JInternalFrame {
 
     private final ProgresoServicio servicio = new ProgresoServicio();
+    private final javax.swing.Timer timerActualizacion = new javax.swing.Timer(15000, e -> refrescar());
     private final JPanel tarjetas = new JPanel(new GridLayout(1, 0, 8, 0));
     private final JPanel etapas = new JPanel(new GridLayout(1, 0, 8, 0));
     private final GraficoDonut graficoEtapas = new GraficoDonut();
     private final GraficoBarrasEtapas graficoBarras = new GraficoBarrasEtapas();
-    private final DefaultTableModel modelo = UiUtil.modelo(
-            new Object[]{"Mercado", "Fecha carga", "Fecha programada", "Etapa", "Compra", "Recepción",
-                    "Alistamiento", "Despacho", "Atención"}, false);
-    private final JTable tabla = new JTable(modelo);
+    private final DefaultTableModel modeloResumen = UiUtil.modelo(
+            new Object[]{"Mercado", "Fecha prog.", "Etapa", "Atención"}, false);
+    private final JTable tablaResumen = new JTable(modeloResumen);
     private final DefaultTableModel modeloTareas = UiUtil.modelo(
             new Object[]{"Prioridad", "Mercado", "Tarea", "Estado"}, false);
     private final JTable tablaTareas = new JTable(modeloTareas);
     private final JLabel lblActualizacion = UiUtil.subtitulo("");
     private final JButton btnActualizar = UiUtil.botonSecundario("Actualizar",
             Iconos.accion(Iconos.Accion.REFRESCAR, Tema.PRIMARIO));
+    private JPanel panelDetalle; // Referencia directa
+    private List<FilaProgreso> filasActuales = new ArrayList<>();
 
     public FrmProgreso() {
         super("Procesos abiertos", true, true, true, true);
@@ -73,34 +75,44 @@ public class FrmProgreso extends JInternalFrame {
         JPanel panelEtapas = crearPanelEtapas();
         JPanel panelProcesos = crearTablaProcesos();
         JPanel panelTareas = crearPanelTareas();
-        ocuparAncho(tarjetas);
-        ocuparAncho(graficos);
-        ocuparAncho(panelEtapas);
-        ocuparAncho(panelProcesos);
-        ocuparAncho(panelTareas);
-        JPanel cuerpo = new JPanel();
-        cuerpo.setOpaque(false);
-        cuerpo.setLayout(new BoxLayout(cuerpo, BoxLayout.Y_AXIS));
-        cuerpo.setBorder(BorderFactory.createEmptyBorder(0, 10, 8, 10));
-        cuerpo.add(tarjetas);
-        cuerpo.add(Box.createVerticalStrut(8));
-        cuerpo.add(graficos);
-        cuerpo.add(Box.createVerticalStrut(8));
-        cuerpo.add(panelEtapas);
-        cuerpo.add(Box.createVerticalStrut(8));
-        cuerpo.add(panelProcesos);
-        cuerpo.add(Box.createVerticalStrut(8));
-        cuerpo.add(panelTareas);
-        JScrollPane scrollCuerpo = new JScrollPane(cuerpo);
-        scrollCuerpo.setBorder(null);
-        scrollCuerpo.getViewport().setOpaque(false);
-        scrollCuerpo.setOpaque(false);
-        scrollCuerpo.getVerticalScrollBar().setUnitIncrement(16);
-        add(scrollCuerpo, BorderLayout.CENTER);
+        // Layout central usando pestañas para organizar la información
+        javax.swing.JTabbedPane pestañas = new javax.swing.JTabbedPane();
+        pestañas.setOpaque(false);
+
+        // Tab 1: Resumen General
+        JPanel panelResumen = new JPanel();
+        panelResumen.setOpaque(false);
+        panelResumen.setLayout(new BoxLayout(panelResumen, BoxLayout.Y_AXIS));
+        panelResumen.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        panelResumen.add(tarjetas);
+        panelResumen.add(Box.createVerticalStrut(8));
+        panelResumen.add(graficos);
+        panelResumen.add(Box.createVerticalStrut(8));
+        panelResumen.add(panelEtapas);
+        JScrollPane scrollResumen = new JScrollPane(panelResumen);
+        scrollResumen.setBorder(null);
+        scrollResumen.setOpaque(false);
+        scrollResumen.getViewport().setOpaque(false);
+        pestañas.addTab("Resumen General", scrollResumen);
+
+        // Tab 2: Seguimiento detallado
+        pestañas.addTab("Procesos", panelProcesos);
+
+        // Tab 3: Tareas urgentes
+        pestañas.addTab("Atención", panelTareas);
+
+        add(pestañas, BorderLayout.CENTER);
 
         btnActualizar.addActionListener(e -> refrescar());
         refrescar();
+        timerActualizacion.start();
         UiUtil.fuenteRaiz(this);
+    }
+
+    @Override
+    public void dispose() {
+        timerActualizacion.stop();
+        super.dispose();
     }
 
     private static void ocuparAncho(JPanel panel) {
@@ -137,35 +149,74 @@ public class FrmProgreso extends JInternalFrame {
         titulo.setFont(Tema.PEQUENA.deriveFont(Font.BOLD));
         panel.add(titulo, BorderLayout.NORTH);
         etapas.setOpaque(false);
-        etapas.setPreferredSize(new java.awt.Dimension(0, 58));
+        // Usamos un layout que permita ajustar el flujo y salto de línea
+        etapas.setLayout(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 8));
         panel.add(etapas, BorderLayout.CENTER);
         return panel;
     }
 
     private JPanel crearTablaProcesos() {
-        JPanel panel = new JPanel(new BorderLayout(0, 5));
+        JPanel panel = new JPanel(new BorderLayout(0, 8));
         panel.setOpaque(false);
         JLabel titulo = UiUtil.subtitulo("Seguimiento por mercado");
-        titulo.setFont(Tema.PEQUENA.deriveFont(Font.BOLD));
+        titulo.setFont(Tema.BASE.deriveFont(Font.BOLD, 16f));
         panel.add(titulo, BorderLayout.NORTH);
-        UiUtil.prepararTabla(tabla);
-        tabla.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        tabla.setRowHeight(34);
-        JScrollPane scroll = new JScrollPane(tabla);
-        scroll.setBorder(BorderFactory.createLineBorder(Tema.BORDE));
-        panel.add(scroll, BorderLayout.CENTER);
+        
+        // Nueva estructura: Tabla resumen arriba y Detalle abajo
+        JPanel centro = new JPanel(new GridLayout(2, 1, 0, 10));
+        centro.setOpaque(false);
+        
+        // 1. Tabla Resumen (Simplificada)
+        UiUtil.prepararTabla(tablaResumen);
+        tablaResumen.setRowHeight(35);
+        tablaResumen.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        
+        JScrollPane scrollResumen = new JScrollPane(tablaResumen);
+        scrollResumen.setBorder(BorderFactory.createLineBorder(Tema.BORDE));
+        scrollResumen.setPreferredSize(new java.awt.Dimension(0, 200));
+        
+        // 2. Panel de Detalle (Donde se muestran los porcentajes al seleccionar)
+        panelDetalle = new JPanel(new BorderLayout());
+        panelDetalle.setBackground(Tema.SUPERFICIE);
+        panelDetalle.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Tema.BORDE),
+                BorderFactory.createEmptyBorder(10, 15, 10, 15)));
+        
+        JLabel lblDetalle = new JLabel("Seleccione un mercado para ver el avance detallado", JLabel.CENTER);
+        lblDetalle.setFont(Tema.PEQUENA);
+        lblDetalle.setForeground(Tema.TEXTO_SUAVE);
+        panelDetalle.add(lblDetalle, BorderLayout.CENTER);
+        
+        // Listener para actualizar el detalle
+        tablaResumen.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                int row = tablaResumen.getSelectedRow();
+                if (row != -1 && row < filasActuales.size()) {
+                    actualizarDetalleMercado(panelDetalle, filasActuales.get(row));
+                }
+            }
+        });
+        
+        // Corrigiendo el panel centro a BorderLayout para mejor control
+        JPanel panelContenedor = new JPanel(new BorderLayout(0, 10));
+        panelContenedor.setOpaque(false);
+        panelContenedor.add(scrollResumen, BorderLayout.NORTH);
+        panelContenedor.add(panelDetalle, BorderLayout.CENTER);
+        
+        panel.add(panelContenedor, BorderLayout.CENTER);
+        
         return panel;
     }
 
     private JPanel crearPanelTareas() {
-        JPanel panel = new JPanel(new BorderLayout(0, 5));
+        JPanel panel = new JPanel(new BorderLayout(0, 8)); // Más espacio
         panel.setOpaque(false);
-        panel.setPreferredSize(new java.awt.Dimension(0, 190));
+        panel.setPreferredSize(new java.awt.Dimension(0, 240)); // Más altura inicial
         JLabel titulo = UiUtil.subtitulo("Tareas que requieren atención");
-        titulo.setFont(Tema.PEQUENA.deriveFont(Font.BOLD));
+        titulo.setFont(Tema.BASE.deriveFont(Font.BOLD, 16f)); // Fuente más grande
         panel.add(titulo, BorderLayout.NORTH);
         UiUtil.prepararTabla(tablaTareas);
-        tablaTareas.setRowHeight(30);
+        tablaTareas.setRowHeight(35); // Un poco más alto
         JScrollPane scroll = new JScrollPane(tablaTareas);
         scroll.setBorder(BorderFactory.createLineBorder(Tema.BORDE));
         panel.add(scroll, BorderLayout.CENTER);
@@ -186,11 +237,18 @@ public class FrmProgreso extends JInternalFrame {
             protected void done() {
                 try {
                     DatosProgreso datos = get();
-                    cargarTarjetas(datos.resumen());
+                    cargarTarjetas(datos.resumen(), datos.filas());
                     cargarGraficos(datos.resumen());
                     cargarEtapas(datos.resumen());
                     cargarProcesos(datos.filas());
                     cargarTareas(datos.tareas());
+                    
+                    // Limpiar detalle al refrescar usando la referencia directa
+                    panelDetalle.removeAll();
+                    panelDetalle.add(new JLabel("Seleccione un mercado para ver el avance detallado", JLabel.CENTER), BorderLayout.CENTER);
+                    panelDetalle.revalidate();
+                    panelDetalle.repaint();
+                    
                     lblActualizacion.setText("Actualizado: " + java.time.LocalDateTime.now()
                             .format(java.time.format.DateTimeFormatter.ofPattern("dd/MM HH:mm")));
                 } catch (Exception ex) {
@@ -212,25 +270,43 @@ public class FrmProgreso extends JInternalFrame {
                                  List<TareaProgreso> tareas) {
     }
 
-    private void cargarTarjetas(ResumenProgreso resumen) {
+    private void cargarTarjetas(ResumenProgreso resumen, List<FilaProgreso> filas) {
         tarjetas.removeAll();
-        tarjetas.add(tarjeta("Plantillas abiertas", resumen.getPlantillasAbiertas(), Tema.PRIMARIO));
-        tarjetas.add(tarjeta("En recepción", resumen.getRecibiendo(), Tema.INFO));
-        tarjetas.add(tarjeta("En alistamiento", resumen.getAlistando(), Tema.ACENTO));
-        tarjetas.add(tarjeta("Listas para despacho", resumen.getListas(), Tema.EXITO));
-        tarjetas.add(tarjeta("Con faltante", resumen.getRecepcionesConFaltante(), Tema.ADVERTENCIA));
+        tarjetas.add(tarjeta("Plantillas", resumen.getPlantillasAbiertas(), Tema.PRIMARIO));
+        tarjetas.add(tarjeta("Compra promedio", (int) Math.round(promedio(filas, "COMPRA")), Tema.INFO, true));
+        tarjetas.add(tarjeta("Recepción promedio", (int) Math.round(promedio(filas, "RECEPCION")), Tema.INFO, true));
+        tarjetas.add(tarjeta("Alistamiento promedio", (int) Math.round(promedio(filas, "ALISTAMIENTO")), Tema.ACENTO, true));
+        tarjetas.add(tarjeta("Listas", resumen.getListas(), Tema.EXITO));
+        tarjetas.add(tarjeta("Faltantes", resumen.getRecepcionesConFaltante(), Tema.ADVERTENCIA));
         tarjetas.revalidate();
         tarjetas.repaint();
     }
 
-    private JPanel tarjeta(String titulo, int valor, Color color) {
+    /** Promedio real de avance de compra, recepcion o alistamiento entre los procesos abiertos. */
+    private static double promedio(List<FilaProgreso> filas, String tipo) {
+        if (filas == null || filas.isEmpty()) return 0;
+        double suma = 0;
+        for (FilaProgreso fila : filas) {
+            if (fila == null) continue;
+            suma += switch (tipo) {
+                case "COMPRA" -> fila.getPorcentajeCompra();
+                case "RECEPCION" -> fila.getPorcentajeRecepcion();
+                case "ALISTAMIENTO" -> fila.getPorcentajeAlistamiento();
+                default -> 0;
+            };
+        }
+        return suma / filas.size();
+    }
+
+    private JPanel tarjeta(String titulo, int valor, Color color, boolean esPorcentaje) {
         JPanel panel = new JPanel(new BorderLayout(6, 0));
         panel.setBackground(Tema.SUPERFICIE);
         panel.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createMatteBorder(0, 4, 0, 0, color),
                 BorderFactory.createEmptyBorder(8, 10, 8, 10)));
-        JLabel numero = new JLabel(String.valueOf(valor));
-        numero.setFont(Tema.fuente(Font.BOLD, 24));
+        
+        JLabel numero = new JLabel(String.valueOf(valor) + (esPorcentaje ? "%" : ""));
+        numero.setFont(Tema.fuente(Font.BOLD, 22));
         numero.setForeground(color);
         JLabel nombre = new JLabel(titulo);
         nombre.setFont(Tema.PEQUENA);
@@ -240,19 +316,38 @@ public class FrmProgreso extends JInternalFrame {
         return panel;
     }
 
+    private JPanel tarjeta(String titulo, int valor, Color color) {
+        return tarjeta(titulo, valor, color, false);
+    }
+
     private void cargarGraficos(ResumenProgreso resumen) {
+        int total = resumen.getPlantillasAbiertas();
+        if (total == 0) total = 1; // Evitar división por cero
+
+        // Depuración: Asegurarnos de que los valores individuales no sumen más de lo que deben
+        int cargadas = resumen.getCargadas();
+        int enCompra = resumen.getEnCompra();
+        int recibiendo = resumen.getRecibiendo();
+        int alistando = resumen.getAlistando();
+        int verificando = resumen.getDespachosEnVerificacion();
+        int listas = resumen.getListas();
+
         graficoEtapas.setDatos(List.of(
-                new GraficoDonut.Segmento("Cargadas", resumen.getCargadas(), Tema.TEXTO_SUAVE),
-                new GraficoDonut.Segmento("En compra", resumen.getEnCompra(), Tema.INFO),
-                new GraficoDonut.Segmento("Recibiendo", resumen.getRecibiendo(), Tema.ADVERTENCIA),
-                new GraficoDonut.Segmento("Alistando", resumen.getAlistando(), Tema.ACENTO),
-                new GraficoDonut.Segmento("Listas", resumen.getListas(), Tema.EXITO)));
+                new GraficoDonut.Segmento("Cargadas", cargadas, Tema.TEXTO_SUAVE),
+                new GraficoDonut.Segmento("Compra", enCompra, Tema.INFO),
+                new GraficoDonut.Segmento("Recepcion", recibiendo, Tema.ADVERTENCIA),
+                new GraficoDonut.Segmento("Alistamiento", alistando, Tema.ACENTO),
+                new GraficoDonut.Segmento("Verificando", verificando, Tema.EXITO),
+                new GraficoDonut.Segmento("Listas", listas, Tema.EXITO)));
+        
+        // Calculamos el porcentaje sobre el total para el gráfico de barras
         graficoBarras.setDatos(List.of(
-                new GraficoBarrasEtapas.Barra("Cargadas", resumen.getCargadas(), Tema.TEXTO_SUAVE),
-                new GraficoBarrasEtapas.Barra("En compra", resumen.getEnCompra(), Tema.INFO),
-                new GraficoBarrasEtapas.Barra("Recibiendo", resumen.getRecibiendo(), Tema.ADVERTENCIA),
-                new GraficoBarrasEtapas.Barra("Alistando", resumen.getAlistando(), Tema.ACENTO),
-                new GraficoBarrasEtapas.Barra("Listas", resumen.getListas(), Tema.EXITO)));
+                new GraficoBarrasEtapas.Barra("Cargadas", (cargadas * 100) / total, Tema.TEXTO_SUAVE),
+                new GraficoBarrasEtapas.Barra("Compra", (enCompra * 100) / total, Tema.INFO),
+                new GraficoBarrasEtapas.Barra("Recepcion", (recibiendo * 100) / total, Tema.ADVERTENCIA),
+                new GraficoBarrasEtapas.Barra("Alistamiento", (alistando * 100) / total, Tema.ACENTO),
+                new GraficoBarrasEtapas.Barra("Verificando", (verificando * 100) / total, Tema.EXITO),
+                new GraficoBarrasEtapas.Barra("Listas", (listas * 100) / total, Tema.EXITO)));
     }
 
     private void cargarEtapas(ResumenProgreso resumen) {
@@ -261,6 +356,7 @@ public class FrmProgreso extends JInternalFrame {
         etapas.add(etapa("EN COMPRA", resumen.getEnCompra(), Tema.INFO));
         etapas.add(etapa("RECIBIENDO", resumen.getRecibiendo(), Tema.ADVERTENCIA));
         etapas.add(etapa("ALISTANDO", resumen.getAlistando(), Tema.ACENTO));
+        etapas.add(etapa("VERIFICANDO", resumen.getDespachosEnVerificacion(), Tema.EXITO));
         etapas.add(etapa("LISTA", resumen.getListas(), Tema.EXITO));
         etapas.revalidate();
         etapas.repaint();
@@ -270,30 +366,93 @@ public class FrmProgreso extends JInternalFrame {
         JPanel panel = new JPanel(new BorderLayout(2, 0));
         panel.setBackground(Tema.SUPERFICIE);
         panel.setBorder(BorderFactory.createLineBorder(Tema.BORDE));
+        panel.setPreferredSize(new java.awt.Dimension(90, 45));
         JLabel numero = new JLabel(String.valueOf(cantidad), JLabel.CENTER);
-        numero.setFont(Tema.fuente(Font.BOLD, 18));
+        numero.setFont(Tema.fuente(Font.BOLD, 16));
         numero.setForeground(color);
         JLabel texto = new JLabel(nombre, JLabel.CENTER);
-        texto.setFont(Tema.PEQUENA.deriveFont(Font.BOLD));
+        texto.setFont(Tema.PEQUENA.deriveFont(Font.BOLD, 9f));
         texto.setForeground(Tema.TEXTO_SUAVE);
         panel.add(numero, BorderLayout.CENTER);
         panel.add(texto, BorderLayout.SOUTH);
         return panel;
     }
 
+    private void actualizarDetalleMercado(JPanel panelDetalle, FilaProgreso fila) {
+        panelDetalle.removeAll();
+        panelDetalle.setLayout(new GridLayout(2, 2, 15, 15));
+        
+        panelDetalle.add(barraConEtiqueta("Compra", (int)fila.getPorcentajeCompra(), Tema.INFO));
+        panelDetalle.add(barraConEtiqueta("Recepción", (int)fila.getPorcentajeRecepcion(), Tema.ADVERTENCIA));
+        panelDetalle.add(barraConEtiqueta("Alistamiento", (int)fila.getPorcentajeAlistamiento(), Tema.ACENTO));
+        panelDetalle.add(barraConEtiqueta("Despacho", (int)fila.getPorcentajeDespacho(), Tema.EXITO));
+        
+        panelDetalle.revalidate();
+        panelDetalle.repaint();
+    }
+
+    private JPanel barraConEtiqueta(String titulo, int porcentaje, Color color) {
+        JPanel panel = new JPanel(new BorderLayout(5, 2));
+        panel.setOpaque(false);
+        
+        JLabel lblTitulo = new JLabel(titulo + " (" + porcentaje + "%)");
+        lblTitulo.setFont(Tema.PEQUENA.deriveFont(Font.BOLD));
+        lblTitulo.setForeground(Tema.TEXTO_SUAVE);
+        
+        BarraProgreso barra = new BarraProgreso();
+        barra.setColor(color);
+        barra.setValor(porcentaje);
+        barra.setPreferredSize(new java.awt.Dimension(0, 15));
+        
+        panel.add(lblTitulo, BorderLayout.NORTH);
+        panel.add(barra, BorderLayout.CENTER);
+        return panel;
+    }
+
     private void cargarProcesos(List<FilaProgreso> filas) {
-        modelo.setRowCount(0);
+        this.filasActuales = filas;
+        modeloResumen.setRowCount(0);
         for (FilaProgreso fila : filas) {
-            modelo.addRow(new Object[]{fila.getNombreMercado(), fila.getFechaCarga(), fila.getFechaProgramada(),
-                    Formato.estado(fila.getEstado()), barra(fila.getPorcentajeCompra(), Tema.INFO),
-                    barra(fila.getPorcentajeRecepcion(), Tema.ADVERTENCIA),
-                    barra(fila.getPorcentajeAlistamiento(), Tema.ACENTO),
-                    barra(fila.getPorcentajeDespacho(), Tema.EXITO), atencion(fila)});
+            modeloResumen.addRow(new Object[]{
+                    fila.getNombreMercado(),
+                    fila.getFechaProgramada(),
+                    Formato.estado(fila.getEstado()),
+                    atencion(fila)
+            });
         }
-        tabla.getColumnModel().getColumn(4).setCellRenderer(new BarraRenderer(Tema.INFO));
-        tabla.getColumnModel().getColumn(5).setCellRenderer(new BarraRenderer(Tema.ADVERTENCIA));
-        tabla.getColumnModel().getColumn(6).setCellRenderer(new BarraRenderer(Tema.ACENTO));
-        tabla.getColumnModel().getColumn(7).setCellRenderer(new BarraRenderer(Tema.EXITO));
+    }
+
+    private static final class BarraConTextoRenderer extends javax.swing.JPanel implements TableCellRenderer {
+        private final BarraProgreso barra;
+        private final JLabel label;
+
+        public BarraConTextoRenderer(Color color) {
+            setLayout(new BorderLayout(5, 0));
+            setOpaque(true);
+            barra = new BarraProgreso();
+            barra.setColor(color);
+            label = new JLabel("", JLabel.RIGHT);
+            label.setFont(Tema.PEQUENA.deriveFont(Font.BOLD));
+            label.setPreferredSize(new java.awt.Dimension(45, 20));
+            add(barra, BorderLayout.CENTER);
+            add(label, BorderLayout.EAST);
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean selected,
+                                                        boolean focused, int row, int column) {
+            String valStr = value.toString();
+            double val = 0;
+            try {
+                val = Double.parseDouble(valStr.replace("%", ""));
+            } catch (NumberFormatException e) { }
+            barra.setValor(val);
+            label.setText(valStr);
+            Color bg = selected ? Tema.PRIMARIO_SUAVE : Tema.SUPERFICIE;
+            setBackground(bg);
+            barra.setBackground(bg);
+            return this;
+        }
     }
 
     private void cargarTareas(List<TareaProgreso> tareas) {
@@ -304,39 +463,9 @@ public class FrmProgreso extends JInternalFrame {
         }
     }
 
-    private static String barra(double valor, Color color) {
-        return String.format(java.util.Locale.US, "%.1f%%", valor);
-    }
-
     private static String atencion(FilaProgreso fila) {
         if (fila.isTieneNovedad()) return "Novedad";
         if (fila.isTieneFaltante()) return "Faltante";
         return "Normal";
-    }
-
-    private static final class BarraRenderer extends BarraProgreso implements TableCellRenderer {
-        private final Color color;
-
-        private BarraRenderer(Color color) {
-            this.color = color;
-            setColor(color);
-        }
-
-        @Override
-        public Component getTableCellRendererComponent(javax.swing.JTable table, Object value, boolean selected,
-                                                       boolean focused, int row, int column) {
-            setValor(valor(value));
-            setBackground(selected ? Tema.PRIMARIO_SUAVE : Tema.SUPERFICIE);
-            return this;
-        }
-
-        private static double valor(Object value) {
-            if (value == null) return 0;
-            try {
-                return Double.parseDouble(value.toString().replace("%", ""));
-            } catch (NumberFormatException ex) {
-                return 0;
-            }
-        }
     }
 }

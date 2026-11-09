@@ -1,6 +1,9 @@
 package agromedio.presentacion;
 
+import agromedio.datos.PlantillaDAO;
+import agromedio.datos.PlantillaDAOSqlite;
 import agromedio.logica.RecepcionServicio;
+import agromedio.logica.ServiceFactory;
 import agromedio.modelo.Compra;
 import agromedio.modelo.DetalleRecepcion;
 import agromedio.modelo.Recepcion;
@@ -39,7 +42,8 @@ public class FrmRecepcion extends JInternalFrame {
     private static final int COL_FALTANTE = 5;
     private static final int COL_RECIBIR = 6;
 
-    private final RecepcionServicio servicio = new RecepcionServicio();
+    private final RecepcionServicio servicio = ServiceFactory.getRecepcionServicio();
+    private final PlantillaDAO plantillaDAO = new PlantillaDAOSqlite();
 
     private final JComboBox<Compra> cmbCompra = new JComboBox<>();
     private final JTextField txtObservaciones = UiUtil.campo();
