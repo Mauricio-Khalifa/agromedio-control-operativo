@@ -144,39 +144,47 @@ La aplicación usa **SQLite**. En el primer inicio crea y carga automáticamente
 
 ## 🖼️ Visuales
 
-Capturas actualizadas de los módulos de la aplicación:
+Capturas actualizadas de los módulos de la aplicación. Los enlaces usan los nombres exactos de los archivos en `docs/imagenes/` (incluyendo mayúsculas, espacios y espacios antes de `.png`):
+
+### Inicio de sesión
+
+![Inicio de sesión de AGROMEDIO](docs/imagenes/Inicio%20de%20sesion%20.png)
 
 ### Menú de navegación
 
 ![Menú de navegación de AGROMEDIO](docs/imagenes/menu%20de%20navegacion%20.png)
 
-### Carga de plantillas
+### Carga de archivos
 
-![Carga de plantillas](docs/imagenes/Carga%20de%20plantillas%20.png)
+![Carga de archivos](docs/imagenes/Carga%20de%20archivos%20.png)
+
+### Plantillas
+
+![Plantillas operativas](docs/imagenes/Plantillas%20.png)
 
 ### Procesos abiertos
 
-![Procesos abiertos](docs/imagenes/Procesos%20abiertos.png)
-
-### Seguimiento de plantillas abiertas
-
-![Seguimiento de las plantillas abiertas](docs/imagenes/Seguimiento%20de%20las%20plantillas%20abiertas.png)
+![Procesos abiertos](docs/imagenes/Procesos%20abiertos%20.png)
 
 ### Compras
 
-![Sección de compras](docs/imagenes/seccion%20de%20compras%20.png)
+![Compras](docs/imagenes/Compras%20.png)
 
-### Recepción
+### Recepción de mercancía
 
-![Recepción de productos](docs/imagenes/recepcion.png)
+![Recepción de mercancía](docs/imagenes/recepcion%20de%20mercancia%20.png)
 
-### Alistamiento y recepción
+### Alistamiento y producción
 
-![Alistamiento y recepción](docs/imagenes/alistamiento%20y%20recepcion%20.png)
+![Alistamiento y producción](docs/imagenes/Alistamiento%20y%20produccion%20.png)
 
-### Despacho
+### Despacho de mercados
 
-![Despacho de productos](docs/imagenes/despacho%20.png)
+![Despacho de mercados](docs/imagenes/Despacho%20de%20mercados%20.png)
+
+### Reportes y consultas
+
+![Reportes y consultas](docs/imagenes/Reportes%20y%20consultas%20.png)
 
 ## 📚 Documentación
 
@@ -188,16 +196,17 @@ Capturas actualizadas de los módulos de la aplicación:
 - [Datos de demostración](docs/base_de_datos/seed.sql)
 
 ## Créditos
-Este proyecto fue desarrollado integrando los conocimientos de las materias, agradecemos a la Universitaria Tecnologica de Santander por darnos esta oportunidad para desarrollarnos dentro de un contexto de proyecto real.
+
+Este proyecto fue desarrollado integrando los conocimientos de las materias. Agradecemos a la Universitaria Tecnológica de Santander por darnos esta oportunidad para desarrollarnos dentro de un contexto real.
 
 Lo hacemos posible 💚
 
-- Planeacion de sistemas informaticos 
-- Motores de bases de datos 
-- Programacion Orientada a objetos 
+- Planeación de sistemas informáticos
+- Motores de bases de datos
+- Programación Orientada a Objetos
 
-Por los estudiantes en formacion:
-- [Santiago Colmenares Parra] 
-- [Iván Mauricio Califa] 
+Por los estudiantes en formación:
+- [Santiago Colmenares Parra]
+- [Iván Mauricio Califa]
 - [Jorge Andrés Correa Morales]
 - [Jaider David Martínez Ditta]
