@@ -188,13 +188,13 @@ Capturas actualizadas de los módulos de la aplicación:
 - [Datos de demostración](docs/base_de_datos/seed.sql)
 
 ## Créditos
-! Este proyecto fue desarrollado integrando los conocimientos de las materias 
-Planeacion de sistemas informaticos 
-Motores de bases de datos 
-Programacion Orientada a objetos 
+- Este proyecto fue desarrollado integrando los conocimientos de las materias 
+-Planeacion de sistemas informaticos 
+-Motores de bases de datos 
+-Programacion Orientada a objetos 
 
 Por los estudiantes en formacion:
-Santiago Colmenares Parra 
-Iván Mauricio Califa 
-Jorge Andrés Correa Morales 
-Jaider David Martínez Ditta
+-Santiago Colmenares Parra 
+-Iván Mauricio Califa 
+-Jorge Andrés Correa Morales
+-Jaider David Martínez Ditta
