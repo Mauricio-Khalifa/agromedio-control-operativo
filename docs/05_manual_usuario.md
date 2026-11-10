@@ -25,7 +25,7 @@
 2. En el primer inicio se crea la base local y se cargan los datos iniciales definidos por el sistema.
 3. En la ventana principal puede abrir módulos desde el menú superior o desde los botones de navegación laterales.
 
-![Ventana principal con ventanas internas](imagenes/carga_de_archivos.png)
+![Ventana principal con ventanas internas](imagenes/Carga_de_archivos.png)
 
 *Figura 1. Ventana principal y módulos de trabajo.*
 
