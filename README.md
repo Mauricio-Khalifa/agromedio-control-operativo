@@ -21,11 +21,11 @@ AGROMEDIO es un prototipo académico de escritorio que permite organizar el cicl
 ## 🧭 Contenido
 
 - [Funciones principales](#-funciones-principales)
+- [Instalar la primera versión](#-instalar-la-primera-versión)
 - [Roles operativos](#-roles-operativos)
 - [Modelo de datos](#-modelo-de-datos)
 - [Estructura del repositorio](#-estructura-del-repositorio)
 - [Requisitos](#-requisitos)
-- [Instalar la primera versión](#-instalar-la-primera-versión)
 - [Clonar, compilar y ejecutar](#-clonar-compilar-y-ejecutar)
 - [Pruebas automatizadas](#-pruebas-automatizadas)
 - [Abrir en NetBeans](#-abrir-en-netbeans)
@@ -47,6 +47,17 @@ AGROMEDIO es un prototipo académico de escritorio que permite organizar el cicl
 - Administrar catálogos de clientes, categorías, unidades de medida, proveedores y productos.
 
 El flujo de una plantilla avanza por los estados **CARGADA → EN_COMPRA → RECIBIENDO → ALISTANDO → LISTA → DESPACHADA**. El sistema aplica validaciones para evitar transiciones y cierres operativos inválidos.
+
+## 📦 Instalar la primera versión
+
+La primera versión publicada es **AGROMEDIO v1.0.0**, que incluye un instalador para Windows.
+
+1. Abre la página de [AGROMEDIO v1.0.0 en GitHub Releases](https://github.com/Mauricio-Khalifa/agromedio-control-operativo/releases/tag/v1.0.0).
+2. En **Assets**, descarga `AgromedioApp-Setup.msi`.
+3. Abre el archivo MSI y sigue los pasos del asistente de instalación.
+4. Al terminar, inicia AGROMEDIO desde el acceso directo creado por el instalador.
+
+> **Aviso de Windows Defender:** al ser una primera versión nueva, Windows Defender o SmartScreen podría mostrar una advertencia o marcar el instalador como una aplicación no reconocida. Si descargaste `AgromedioApp-Setup.msi` desde la página oficial de Releases enlazada arriba y esperabas instalar AGROMEDIO, puedes elegir **Más información** y luego **Ejecutar de todas formas** (o continuar con la instalación). Si el archivo proviene de otro sitio, su nombre no coincide o tienes dudas, cancela la instalación y verifica la descarga antes de continuar.
 
 ## 👥 Roles operativos
 
@@ -86,16 +97,7 @@ El esquema también incluye vistas de consulta para el **saldo de cada plantilla
 - Java JDK 17 o superior (`java -version`).
 - Apache Ant para compilar. Puede usarse el incluido con NetBeans 21; las instrucciones siguientes muestran la ruta habitual en Windows.
 
-## 📦 Instalar la primera versión
 
-La primera versión publicada es **AGROMEDIO v1.0.0**, que incluye un instalador para Windows.
-
-1. Abre la página de [AGROMEDIO v1.0.0 en GitHub Releases](https://github.com/Mauricio-Khalifa/agromedio-control-operativo/releases/tag/v1.0.0).
-2. En **Assets**, descarga `AgromedioApp-Setup.msi`.
-3. Abre el archivo MSI y sigue los pasos del asistente de instalación.
-4. Al terminar, inicia AGROMEDIO desde el acceso directo creado por el instalador.
-
-> **Aviso de Windows Defender:** al ser una primera versión nueva, Windows Defender o SmartScreen podría mostrar una advertencia o marcar el instalador como una aplicación no reconocida. Si descargaste `AgromedioApp-Setup.msi` desde la página oficial de Releases enlazada arriba y esperabas instalar AGROMEDIO, puedes elegir **Más información** y luego **Ejecutar de todas formas** (o continuar con la instalación). Si el archivo proviene de otro sitio, su nombre no coincide o tienes dudas, cancela la instalación y verifica la descarga antes de continuar.
 
 ## 🚀 Clonar, compilar y ejecutar
 
