@@ -12,7 +12,7 @@ Carga de instrucciones · Compras · Recepción · Alistamiento · Despacho · R
 
 ## 📌 Acerca del proyecto
 
-AGROMEDIO es un prototipo académico de escritorio que permite organizar el ciclo operativo de los mercados: desde la recepción de instrucciones en archivos hasta la verificación de los productos despachados. La aplicación conserva el historial de cada operación y ayuda a consultar cantidades solicitadas, compradas, recibidas, alistadas y despachadas.
+AGROMEDIO es un prototipo académico de escritorio que permite organizar el ciclo operativo de los mercados: desde la recepción de instrucciones en archivos hasta la verificación de los productos de cada despacho.
 
 **Proyecto Integrador** de las Unidades Tecnológicas de Santander, desarrollado en el marco de las asignaturas TSI304 Planeación de Sistemas Informáticos, TSI301 Motores de Bases de Datos y TSI302 Programación Orientada a Objetos.
 
@@ -25,6 +25,7 @@ AGROMEDIO es un prototipo académico de escritorio que permite organizar el cicl
 - [Modelo de datos](#-modelo-de-datos)
 - [Estructura del repositorio](#-estructura-del-repositorio)
 - [Requisitos](#-requisitos)
+- [Instalar la primera versión](#-instalar-la-primera-versión)
 - [Clonar, compilar y ejecutar](#-clonar-compilar-y-ejecutar)
 - [Pruebas automatizadas](#-pruebas-automatizadas)
 - [Abrir en NetBeans](#-abrir-en-netbeans)
@@ -62,16 +63,16 @@ Los roles describen responsabilidades dentro del proceso. **Esta versión es mon
 
 ## 🗃️ Modelo de datos
 
-La base de datos SQLite organiza la información en tablas relacionadas por llaves foráneas. A continuación se resumen las entidades principales; el [diccionario de datos](docs/08_diccionario_datos.md) contiene columnas, restricciones y relaciones en detalle.
+La base de datos SQLite organiza la información en tablas relacionadas por llaves foráneas. A continuación se resumen las entidades principales; consulta también el [diccionario de datos](docs/08_diccionario_datos.md).
 
 | Área | Tablas | ¿Qué registran? |
 |---|---|---|
 | **Catálogos** | `cliente`, `categoria`, `unidad_medida`, `proveedor`, `producto` | Entidades y datos maestros usados durante la operación, con las unidades y factores de conversión de productos. |
-| **Carga y demanda** | `carga_plantilla`, `plantilla_operativa`, `detalle_plantilla` | Archivos procesados, mercados programados y productos con sus cantidades solicitadas. El hash SHA-256 de la carga ayuda a evitar duplicados. |
-| **Compras y recepción** | `compra`, `detalle_compra`, `distribucion_compra`, `recepcion`, `detalle_recepcion` | Compras, productos y proveedores asociados, distribución de cantidades entre plantillas y entregas recibidas con faltantes acumulados. |
+| **Carga y demanda** | `carga_plantilla`, `plantilla_operativa`, `detalle_plantilla` | Archivos procesados, mercados programados y productos con sus cantidades solicitadas. El hash SHA-256 de la carga permite identificar archivos ya procesados. |
+| **Compras y recepción** | `compra`, `detalle_compra`, `distribucion_compra`, `recepcion`, `detalle_recepcion` | Compras, productos y proveedores asociados, distribución de cantidades entre plantillas y entregas recibidas. |
 | **Alistamiento y despacho** | `alistamiento`, `detalle_alistamiento`, `despacho`, `detalle_despacho` | Preparación de productos y verificación de cada ítem al momento de despachar un mercado. |
 
-El esquema también incluye vistas de consulta para el **saldo de cada plantilla** (`v_saldo_plantilla`), los **faltantes de recepción** (`v_faltantes_recepcion`) y el **avance del despacho** (`v_avance_despacho`).
+El esquema también incluye vistas de consulta para el **saldo de cada plantilla** (`v_saldo_plantilla`), los **faltantes de recepción** (`v_faltantes_recepcion`) y el **avance del despacho**.
 
 ## 📁 Estructura del repositorio
 
@@ -84,6 +85,17 @@ El esquema también incluye vistas de consulta para el **saldo de cada plantilla
 
 - Java JDK 17 o superior (`java -version`).
 - Apache Ant para compilar. Puede usarse el incluido con NetBeans 21; las instrucciones siguientes muestran la ruta habitual en Windows.
+
+## 📦 Instalar la primera versión
+
+La primera versión publicada es **AGROMEDIO v1.0.0**, que incluye un instalador para Windows.
+
+1. Abre la página de [AGROMEDIO v1.0.0 en GitHub Releases](https://github.com/Mauricio-Khalifa/agromedio-control-operativo/releases/tag/v1.0.0).
+2. En **Assets**, descarga `AgromedioApp-Setup.msi`.
+3. Abre el archivo MSI y sigue los pasos del asistente de instalación.
+4. Al terminar, inicia AGROMEDIO desde el acceso directo creado por el instalador.
+
+> **Aviso de Windows Defender:** al ser una primera versión nueva, Windows Defender o SmartScreen podría mostrar una advertencia o marcar el instalador como una aplicación no reconocida. Si descargaste `AgromedioApp-Setup.msi` desde la página oficial de Releases enlazada arriba y esperabas instalar AGROMEDIO, puedes elegir **Más información** y luego **Ejecutar de todas formas** (o continuar con la instalación). Si el archivo proviene de otro sitio, su nombre no coincide o tienes dudas, cancela la instalación y verifica la descarga antes de continuar.
 
 ## 🚀 Clonar, compilar y ejecutar
 
@@ -130,7 +142,7 @@ Selecciona **Archivo → Abrir proyecto…** y elige la carpeta `AgromedioApp`. 
 
 ## 🛢️ Base de datos
 
-La aplicación usa **SQLite**. En el primer inicio crea y carga automáticamente la base de datos desde `AgromedioApp/src/sql/schema.sql` y `AgromedioApp/src/sql/seed.sql`. Las copias de consulta están en `docs/base_de_datos/`.
+La aplicación usa **SQLite**. En el primer inicio crea y carga automáticamente la base de datos desde `AgromedioApp/src/sql/schema.sql` y `AgromedioApp/src/sql/seed.sql`. Las copias de consulta del esquema y los datos de demostración se encuentran en `docs/base_de_datos/`.
 
 ## 📄 Formatos de entrada
 
@@ -197,7 +209,7 @@ Capturas actualizadas de los módulos de la aplicación. Los enlaces usan los no
 
 ## Créditos
 
-Este proyecto fue desarrollado integrando los conocimientos de las materias. Agradecemos a la Universitaria Tecnológica de Santander por darnos esta oportunidad para desarrollarnos dentro de un contexto real.
+Este proyecto fue desarrollado integrando los conocimientos de las materias. Agradecemos a la Universitaria Tecnológica de Santander por darnos esta oportunidad para desarrollarnos dentro de un contexto real y fortalecer nuestra formación profesional.
 
 Lo hacemos posible 💚
 
